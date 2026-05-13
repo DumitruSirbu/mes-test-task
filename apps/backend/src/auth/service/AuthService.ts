@@ -165,7 +165,7 @@ export class AuthService implements OnModuleInit {
         }
     }
 
-    private issueToken(user: UserEntity): IAuthTokenResponse {
+    public issueToken(user: UserEntity): IAuthTokenResponse {
         const payload: Pick<IJwtPayload, 'sub' | 'role'> = { sub: user.userId, role: user.role };
         // assertJwtConfig validated the format of jwtExpiresIn against JWT_EXPIRES_IN_REGEX.
         // The single `as` narrows from the wider `string` returned by ConfigService to the

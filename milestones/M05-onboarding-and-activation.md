@@ -62,4 +62,11 @@ M04 (invitations exist and carry tokens).
 
 ## Outcome
 
-(filled by mes-scribe at close)
+Shipped `POST /invitations/redeem` + `GET /invitations/:token/meta` (Public, both HTTP 410 oracle-resistant per ADR 0005).
+Created `enrolments` migration + `EnrolmentEntity` + `EnrolmentsRepository`. Four invitation domain errors
+(all HTTP 410): `InvitationNotFoundError`, `InvitationExpiredError`, `InvitationAlreadyRedeemedError`, `InvitationEmailConflictError`.
+Frontend: `/onboard/:token` route with RHF form (firstName, lastName, dateOfBirth, password, confirmPassword), JWT decode,
+authStore write, `/lms` redirect. Stub LmsPage. Shared: `redeemInvitationSchema`, `IInvitationMetaResponse`, `IAuthTokenResponse`.
+Tests: 9 backend e2e + 11 frontend unit, all passing. Two review rounds — all blockers resolved.
+Carry-overs to M06: argon2 timing oracle, rate limiting, dateOfBirth real-date check,
+repo BaseRepository bypass, error codes not in shared.

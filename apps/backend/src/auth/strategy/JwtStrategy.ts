@@ -28,7 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             ignoreExpiration: false,
             // assertJwtConfig threw if `secret` was undefined, so this `as` is a genuine
             // narrowing from `string | undefined` to `string` after the guard above.
-            secretOrKey: secret as string,
+            secretOrKey: secret,
             algorithms: ['HS256'],
         });
     }

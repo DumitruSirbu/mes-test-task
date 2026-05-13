@@ -10,4 +10,6 @@ export interface ICreateUserInput {
     role: UserRoleEnum;
     firstName?: string | null;
     lastName?: string | null;
+    /** ISO date string (YYYY-MM-DD) — mirrors `UserEntity.dateOfBirth` column type. */
+    dateOfBirth?: string | null;
 }

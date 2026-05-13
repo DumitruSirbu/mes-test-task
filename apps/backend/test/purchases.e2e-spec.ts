@@ -35,6 +35,7 @@ import { CourseEntity } from '../src/courses/entity/CourseEntity';
 import { InvitationsService } from '../src/invitations/service/InvitationsService';
 import { InvitationsRepository } from '../src/invitations/repository/InvitationsRepository';
 import { InvitationEntity } from '../src/invitations/entity/InvitationEntity';
+import { EnrolmentsRepository } from '../src/enrolments/repository/EnrolmentsRepository';
 import { IdempotencyService } from '../src/common/idempotency/service/IdempotencyService';
 import { IdempotencyKeysRepository } from '../src/common/idempotency/repository/IdempotencyKeysRepository';
 import { IdempotencyKeyEntity } from '../src/common/idempotency/entity/IdempotencyKeyEntity';
@@ -392,6 +393,7 @@ describe('Purchases (e2e)', () => {
                 { provide: CoursesRepository, useValue: coursesRepoStub },
                 CoursesService,
                 { provide: InvitationsRepository, useValue: invitationsRepoStub },
+                { provide: EnrolmentsRepository, useValue: {} },
                 InvitationsService,
                 { provide: IdempotencyKeysRepository, useValue: idemRepo },
                 IdempotencyService,

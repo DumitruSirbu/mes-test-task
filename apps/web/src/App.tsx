@@ -8,6 +8,8 @@ import { CoursesPage } from './pages/CoursesPage';
 import { CourseDetailPage } from './pages/CourseDetailPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { CheckoutSuccessPage } from './pages/CheckoutSuccessPage';
+import { OnboardPage } from './pages/OnboardPage';
+import { LmsPage } from './pages/LmsPage';
 import './App.css';
 
 /**
@@ -34,6 +36,16 @@ const renderRoute = (path: string): ReactElement => {
 
     if (path === '/courses') {
         return <CoursesPage />;
+    }
+
+    const onboardMatch = matchRoute('/onboard/:token', path);
+
+    if (onboardMatch) {
+        return <OnboardPage token={onboardMatch.params.token} />;
+    }
+
+    if (path === '/lms') {
+        return <LmsPage />;
     }
 
     if (path === '/login') {

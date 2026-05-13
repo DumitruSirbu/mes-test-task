@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { BaseRepository } from '../../common/repository/BaseRepository';
 import { UserEntity } from '../entity/UserEntity';
 import { ICreateUserInput } from '../interface/ICreateUserInput';
@@ -25,6 +25,17 @@ export class UsersRepository extends BaseRepository<UserEntity> {
 
     public async insertUser(input: ICreateUserInput): Promise<UserEntity> {
         return this.create(input);
+    }
+
+    /**
+     * Insert a user inside the caller's `EntityManager` so the row participates in the
+     * surrounding transaction (e.g. invitation redemption — user + enrolment must commit
+     * atomically per ADR 0006).
+     */
+    public async insertUserWithinTransaction(manager: EntityManager, input: ICreateUserInput): Promise<UserEntity> {
+        const entity = manager.create(UserEntity, input);
+
+        return manager.save(UserEntity, entity);
     }
 
     /**

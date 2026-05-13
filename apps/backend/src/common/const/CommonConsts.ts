@@ -3,6 +3,8 @@
  * against a status code without triggering the `no-unsafe-enum-comparison` lint rule
  * that fires when comparing `number` directly to a TypeScript numeric enum value.
  */
+export const HTTP_STATUS_CONFLICT = 409;
+export const HTTP_STATUS_GONE = 410;
 export const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
 export const HTTP_STATUS_INTERNAL_SERVER_ERROR = 500;
 

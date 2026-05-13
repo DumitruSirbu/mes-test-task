@@ -9,7 +9,7 @@ import { JWT_EXPIRES_IN_REGEX, JWT_SECRET_MIN_LENGTH } from '../const/AuthConsts
  * misconfigured auth settings. The check is intentionally centralised here so both
  * consumers stay in sync.
  */
-export function assertJwtConfig(secret: string | undefined, expiresIn: string): void {
+export function assertJwtConfig(secret: string | undefined, expiresIn: string): asserts secret is string {
     if (!secret || secret.length < JWT_SECRET_MIN_LENGTH) {
         throw new ConfigurationError(`JWT_SECRET is missing or shorter than ${JWT_SECRET_MIN_LENGTH} characters — refusing to boot.`);
     }

@@ -18,6 +18,9 @@ import { PINO_REDACT_PATHS } from './LoggerConsts';
                 const usePretty = !isProd && process.env.LOG_PRETTY !== 'false';
                 return {
                     pinoHttp: {
+                        autoLogging: {
+                            ignore: (req: { url?: string }) => (req.url ?? '').startsWith('/health'),
+                        },
                         level: process.env.LOG_LEVEL ?? 'info',
                         transport: usePretty
                             ? {
@@ -41,7 +44,7 @@ import { PINO_REDACT_PATHS } from './LoggerConsts';
                         serializers: {
                             req: (req: { id?: string; method?: string; url?: string }) => ({
                                 method: req.method,
-                                url: req.url,
+                                url: (req.url as string)?.replace(/^(\/invitations\/)([^/]+)(\/meta)/, '$1[REDACTED]$3'),
                                 id: req.id,
                             }),
                         },

@@ -23,6 +23,7 @@ import { InvitationsModule } from './invitations/InvitationsModule';
 import { InvitationEntity } from './invitations/entity/InvitationEntity';
 import { PurchasesModule } from './purchases/PurchasesModule';
 import { PurchaseEntity } from './purchases/entity/PurchaseEntity';
+import { EnrolmentEntity } from './enrolments/entity/EnrolmentEntity';
 
 /**
  * Root module. Order matters:
@@ -45,7 +46,7 @@ import { PurchaseEntity } from './purchases/entity/PurchaseEntity';
             inject: [ConfigService],
             useFactory: (config: ConfigService) => ({
                 ...buildPostgresOptionsFromConfig(config),
-                entities: [UserEntity, CourseEntity, PurchaseEntity, InvitationEntity, IdempotencyKeyEntity],
+                entities: [UserEntity, CourseEntity, PurchaseEntity, InvitationEntity, IdempotencyKeyEntity, EnrolmentEntity],
             }),
         }),
         UsersModule,

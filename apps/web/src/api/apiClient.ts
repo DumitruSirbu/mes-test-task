@@ -1,10 +1,13 @@
 import type { IApiErrorResponse } from '@mes/shared';
+import { authStore } from '../auth/authStore';
+import { navigate } from '../router/router';
 
 /**
  * Tiny fetch wrapper used by every page. Centralises:
  *   - Base URL resolution from Vite env (`VITE_API_BASE_URL`).
  *   - Bearer token injection from the auth store.
  *   - Canonical error envelope decoding into a typed `ApiError`.
+ *   - Global 401 handling: clears expired/invalid tokens and redirects to /login.
  *
  * No retries here — per ADR 0006 mutation retries are disabled by default and the
  * idempotency layer makes server-side retries unnecessary anyway.
@@ -66,7 +69,14 @@ export const apiRequest = async <TResponse>(path: string, options: IApiRequestOp
     const parsed = text.length > 0 ? (JSON.parse(text) as unknown) : null;
 
     if (!response.ok) {
-        throw new ApiError(response.status, parsed as IApiErrorResponse);
+        const apiError = new ApiError(response.status, parsed as IApiErrorResponse);
+
+        if (response.status === 401) {
+            authStore.clear();
+            navigate('/login');
+        }
+
+        throw apiError;
     }
 
     return parsed as TResponse;
