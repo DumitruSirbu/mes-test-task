@@ -13,4 +13,7 @@ export * from './InvitationExpiredError';
 export * from './InvitationAlreadyRedeemedError';
 export * from './InvitationEmailConflictError';
 export * from './EnrolmentAlreadyExistsError';
+export * from './DuplicatePurchaseForStudentError';
 export * from './PurchaseNotFoundError';
+export * from './NotEnrolledError';
+export * from './LessonNotFoundError';

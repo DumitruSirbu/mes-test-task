@@ -15,6 +15,7 @@ const STUB_META: IInvitationMetaResponse = {
     studentEmail: 'student@example.com',
     expiresAt: '2026-06-01T00:00:00.000Z',
     status: InvitationStatusEnum.ISSUED,
+    hasExistingStudentAccount: false,
 };
 
 const STUB_REDEEM_RESPONSE = {

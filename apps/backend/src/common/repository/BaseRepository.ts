@@ -32,6 +32,16 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     }
 
     /**
+     * Find a single row matching the given `where` clause with the specified relations
+     * eagerly loaded, or `null` when absent.
+     * Use this instead of reaching into `this.repository.findOne` directly when relations
+     * are needed — keeps the raw TypeORM repository hidden from concrete repository methods.
+     */
+    protected async findOneWithRelations(where: FindOptionsWhere<T>, relations: string[]): Promise<T | null> {
+        return this.repository.findOne({ where, relations });
+    }
+
+    /**
      * Persist a single new row. Returns the saved entity (with generated id /
      * timestamps populated).
      */

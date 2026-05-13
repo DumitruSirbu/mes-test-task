@@ -11,8 +11,9 @@ import { CourseEntity } from '../../../courses/entity/CourseEntity';
 import { InvitationEntity } from '../../../invitations/entity/InvitationEntity';
 import { PurchaseEntity } from '../../entity/PurchaseEntity';
 import { CourseSubjectEnum, InvitationStatusEnum } from '@mes/shared';
+import { DuplicatePurchaseForStudentError } from '../../../common/error/DuplicatePurchaseForStudentError';
 
-type PurchasesRepositoryMock = Pick<PurchasesRepository, 'insertWithinTransaction' | 'listByParent'>;
+type PurchasesRepositoryMock = Pick<PurchasesRepository, 'insertWithinTransaction' | 'listByParent' | 'existsCompletedForParentCourseAndStudent'>;
 type InvitationsRepositoryMock = Pick<InvitationsRepository, 'findManyByPurchaseIds'>;
 type InvitationsServiceMock = Pick<InvitationsService, 'issueWithinTransaction' | 'toResponseWithPlaintext'>;
 type CoursesServiceMock = Pick<CoursesService, 'findByIdOrThrow'>;
@@ -23,6 +24,7 @@ describe('PurchasesService', () => {
 
     const insertPurchaseMock = jest.fn();
     const listByParentMock = jest.fn();
+    const existsDuplicateMock = jest.fn();
     const issueInvitationMock = jest.fn();
     const toResponseMock = jest.fn();
     const findManyInvitationsMock = jest.fn();
@@ -75,6 +77,8 @@ describe('PurchasesService', () => {
 
     beforeEach(async () => {
         jest.clearAllMocks();
+        // Default: parent has no prior matching completed purchase — precheck passes.
+        existsDuplicateMock.mockResolvedValue(false);
         transactionMock.mockImplementation(async (runInTransaction: (manager: EntityManager) => Promise<unknown>) => runInTransaction(fakeManager));
         toResponseMock.mockImplementation((entity: InvitationEntity, plaintext: string) => ({
             id: entity.invitationId,
@@ -89,6 +93,7 @@ describe('PurchasesService', () => {
         const purchasesRepositoryMock: PurchasesRepositoryMock = {
             insertWithinTransaction: insertPurchaseMock,
             listByParent: listByParentMock,
+            existsCompletedForParentCourseAndStudent: existsDuplicateMock,
         };
 
         const invitationsRepositoryMock: InvitationsRepositoryMock = {
@@ -208,6 +213,40 @@ describe('PurchasesService', () => {
 
             expect(transactionMock).not.toHaveBeenCalled();
             expect(insertPurchaseMock).not.toHaveBeenCalled();
+        });
+
+        it('throws DuplicatePurchaseForStudentError and does not open a transaction when the parent already purchased this course for this student email', async () => {
+            findCourseMock.mockResolvedValue(buildCourse());
+            existsDuplicateMock.mockResolvedValue(true);
+
+            await expect(
+                service.createPurchase({
+                    parentUserId: 42,
+                    body: { courseId: 7, studentEmail: 'student@example.com' },
+                    idempotency: { key: 'idem-12345678', endpoint: 'POST /purchases', requestHash: 'h'.repeat(64) },
+                }),
+            ).rejects.toBeInstanceOf(DuplicatePurchaseForStudentError);
+
+            expect(existsDuplicateMock).toHaveBeenCalledWith(42, 7, 'student@example.com');
+            expect(transactionMock).not.toHaveBeenCalled();
+            expect(insertPurchaseMock).not.toHaveBeenCalled();
+        });
+
+        it('proceeds normally when the parent has no matching prior completed purchase', async () => {
+            findCourseMock.mockResolvedValue(buildCourse());
+            // existsDuplicateMock returns false from beforeEach.
+            insertPurchaseMock.mockResolvedValue(buildPurchase());
+            issueInvitationMock.mockResolvedValue({ entity: buildInvitation(), plaintextToken: 'plaintext-xyz' });
+            persistKeyMock.mockResolvedValue(undefined);
+
+            await service.createPurchase({
+                parentUserId: 42,
+                body: { courseId: 7, studentEmail: 'student@example.com' },
+                idempotency: { key: 'idem-12345678', endpoint: 'POST /purchases', requestHash: 'h'.repeat(64) },
+            });
+
+            expect(existsDuplicateMock).toHaveBeenCalledWith(42, 7, 'student@example.com');
+            expect(transactionMock).toHaveBeenCalledTimes(1);
         });
     });
 

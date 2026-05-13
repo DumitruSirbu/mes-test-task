@@ -45,6 +45,53 @@ body {
     font-size: 0.8rem;
 }
 
+.students-panel {
+    margin-top: 2rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    background: white;
+    text-align: left;
+}
+
+.students-panel h2 {
+    margin-top: 0;
+    font-size: 1.1rem;
+}
+
+.student-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.student-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f0f2f5;
+}
+
+.student-item:last-child {
+    border-bottom: none;
+}
+
+.student-item ul {
+    margin: 0.25rem 0 0;
+    padding-left: 1.25rem;
+}
+
+.purchased-badge {
+    display: inline-block;
+    background: #dcfce7;
+    color: #166534;
+    padding: 0.15rem 0.55rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.5rem;
+}
+
 main {
     padding: 2rem 1.5rem;
     max-width: 960px;
@@ -132,6 +179,13 @@ button:disabled {
     border-radius: 4px;
 }
 
+.info {
+    color: #0c4a6e;
+    background: #e0f2fe;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+}
+
 .invitation-url {
     display: flex;
     gap: 0.5rem;
@@ -153,4 +207,40 @@ button:disabled {
     background: #f3f4f6;
     padding: 0.1rem 0.3rem;
     border-radius: 3px;
+}
+
+.link-button {
+    background: none;
+    border: none;
+    color: #2563eb;
+    text-decoration: underline;
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+}
+
+.link-button:hover {
+    color: #1d4ed8;
+}
+
+.page-actions {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 1rem;
+}
+
+.back-button {
+    background: white;
+    color: #2563eb;
+    border: 1px solid #2563eb;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 500;
+}
+
+.back-button:hover {
+    background: #2563eb;
+    color: white;
 }

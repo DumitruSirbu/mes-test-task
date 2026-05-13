@@ -10,6 +10,8 @@ import { CheckoutPage } from './pages/CheckoutPage';
 import { CheckoutSuccessPage } from './pages/CheckoutSuccessPage';
 import { OnboardPage } from './pages/OnboardPage';
 import { LmsPage } from './pages/LmsPage';
+import { LmsCourseDetailPage } from './pages/LmsCourseDetailPage';
+import { LmsLessonPage } from './pages/LmsLessonPage';
 import './App.css';
 
 /**
@@ -44,6 +46,18 @@ const renderRoute = (path: string): ReactElement => {
         return <OnboardPage token={onboardMatch.params.token} />;
     }
 
+    const lmsLessonMatch = matchRoute('/lms/lessons/:lessonId', path);
+
+    if (lmsLessonMatch) {
+        return <LmsLessonPage lessonId={lmsLessonMatch.params.lessonId} />;
+    }
+
+    const lmsCourseMatch = matchRoute('/lms/courses/:id', path);
+
+    if (lmsCourseMatch) {
+        return <LmsCourseDetailPage courseId={lmsCourseMatch.params.id} />;
+    }
+
     if (path === '/lms') {
         return <LmsPage />;
     }
@@ -75,6 +89,7 @@ const App = (): ReactElement => {
                 <nav>
                     {auth ? (
                         <>
+                            {auth.role === UserRoleEnum.STUDENT ? <a href="#/lms">My Courses</a> : null}
                             <span>{auth.email}</span>
                             {auth.role === UserRoleEnum.PARENT ? <span className="role-badge">Parent</span> : null}
                             <button type="button" onClick={onLogout}>Log out</button>

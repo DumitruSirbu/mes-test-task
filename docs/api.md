@@ -290,6 +290,7 @@ Fields:
 | 401  | `AUTH_INVALID_TOKEN` | Token invalid or expired. |
 | 403  | `AUTH_FORBIDDEN_ROLE` | Authenticated user is not a PARENT. |
 | 404  | `COURSE_NOT_FOUND` | Course ID does not exist. |
+| 409  | `PURCHASE_ALREADY_EXISTS_FOR_STUDENT` | The calling parent has already completed a purchase for this course with this student email. No purchase or invitation is created. Scoped to the calling parent — cross-parent duplicates are still caught at invitation redemption. |
 | 409  | `IDEMPOTENCY_BODY_MISMATCH` | Same Idempotency-Key was used with a different request body. Pick a new key and do not retry. |
 | 409  | `IDEMPOTENCY_KEY_REUSED` | Same Idempotency-Key + body is still being processed. Retry after short backoff. |
 
@@ -332,6 +333,118 @@ On the list endpoint, `invitation.url` is the redemption URL stored at purchase 
 | 401  | `AUTH_MISSING_TOKEN` | Authorization header missing. |
 | 401  | `AUTH_INVALID_TOKEN` | Token invalid or expired. |
 | 403  | `AUTH_FORBIDDEN_ROLE` | Authenticated user is not a PARENT. |
+
+---
+
+## LMS Access
+
+All LMS endpoints require STUDENT role and a valid bearer token.
+
+### GET /me/courses
+
+Fetch the authenticated student's enrolled courses.
+
+**Auth:** Bearer JWT (STUDENT only)
+
+**Idempotent:** N/A (GET)
+
+**Response `200`:**
+```json
+[
+  {
+    "id": 1,
+    "subject": "MATHEMATICS",
+    "yearFrom": 9,
+    "yearTo": 11,
+    "title": "GCSE Mathematics",
+    "pricePence": 19900
+  }
+]
+```
+
+**Error codes:**
+
+| HTTP | Code | When |
+|------|------|------|
+| 401  | `AUTH_MISSING_TOKEN` | Authorization header missing. |
+| 401  | `AUTH_INVALID_TOKEN` | Token invalid or expired. |
+| 403  | `AUTH_FORBIDDEN_ROLE` | Authenticated user is not a STUDENT. |
+
+---
+
+### GET /courses/:id/lessons
+
+List all lessons in a course (student must be enrolled).
+
+**Auth:** Bearer JWT (STUDENT only)
+
+**Idempotent:** N/A (GET)
+
+**Path parameters:**
+
+| Param | Type | Rules |
+|-------|------|-------|
+| id    | int  | Positive integer (course ID) |
+
+**Response `200`:**
+```json
+[
+  {
+    "id": 1,
+    "courseId": 1,
+    "title": "Introduction to Algebra",
+    "orderIndex": 1,
+    "createdAt": "2026-05-13T10:00:00Z"
+  }
+]
+```
+
+**Error codes:**
+
+| HTTP | Code | When |
+|------|------|------|
+| 401  | `AUTH_MISSING_TOKEN` | Authorization header missing. |
+| 401  | `AUTH_INVALID_TOKEN` | Token invalid or expired. |
+| 403  | `AUTH_FORBIDDEN_ROLE` | Authenticated user is not a STUDENT. |
+| 403  | `NOT_ENROLLED` | Student is not enrolled in this course. |
+| 404  | `COURSE_NOT_FOUND` | Course ID does not exist. |
+
+---
+
+### GET /lessons/:id
+
+Fetch a single lesson (student must be enrolled in the lesson's course).
+
+**Auth:** Bearer JWT (STUDENT only)
+
+**Idempotent:** N/A (GET)
+
+**Path parameters:**
+
+| Param | Type | Rules |
+|-------|------|-------|
+| id    | int  | Positive integer (lesson ID) |
+
+**Response `200`:**
+```json
+{
+  "id": 1,
+  "courseId": 1,
+  "title": "Introduction to Algebra",
+  "body": "<p>Algebra is the branch of mathematics...</p>",
+  "orderIndex": 1,
+  "createdAt": "2026-05-13T10:00:00Z"
+}
+```
+
+**Error codes:**
+
+| HTTP | Code | When |
+|------|------|------|
+| 401  | `AUTH_MISSING_TOKEN` | Authorization header missing. |
+| 401  | `AUTH_INVALID_TOKEN` | Token invalid or expired. |
+| 403  | `AUTH_FORBIDDEN_ROLE` | Authenticated user is not a STUDENT. |
+| 403  | `NOT_ENROLLED` | Student is not enrolled in the lesson's course (oracle-resistant: same response as lesson not found). |
 
 ---
 
@@ -505,7 +618,7 @@ All error responses follow the canonical JSON shape:
 | 409 | `USER_EMAIL_TAKEN` | Signup email already registered. | Use a different email or login instead. |
 | 409 | `IDEMPOTENCY_BODY_MISMATCH` | Same Idempotency-Key used with different request body. | **Do not retry.** Pick a new key. |
 | 409 | `IDEMPOTENCY_KEY_REUSED` | Same key + body currently being processed. | Retry after 1–2 second backoff. |
-| 409 | `ENROLMENT_ALREADY_EXISTS` | Student already enrolled in this course. | Student cannot purchase the same course twice. |
+| 409 | `PURCHASE_ALREADY_EXISTS_FOR_STUDENT` | Calling parent already completed a purchase for this course + student email. | Scoped to the calling parent. Cross-parent duplicates surface at invitation redemption. |
 | 410 | `INVITATION_NOT_FOUND` | Invitation token not in database. | Oracle-resistant: same message for all invitation errors. |
 | 410 | `INVITATION_EXPIRED` | Invitation past expiry timestamp. | Oracle-resistant: same message for all invitation errors. |
 | 410 | `INVITATION_ALREADY_REDEEMED` | Invitation was already redeemed. | Oracle-resistant: same message for all invitation errors. |

@@ -10,6 +10,8 @@ export * from './types/IAuthenticatedUser.js';
 export * from './types/IApiErrorResponse.js';
 export * from './types/IAuthTokenResponse.js';
 export * from './types/ICourseResponse.js';
+export * from './types/ICourseWithLessonsResponse.js';
+export * from './types/ILessonResponse.js';
 export * from './types/IInvitationResponse.js';
 export * from './types/IInvitationMetaResponse.js';
 export * from './types/IPurchaseResponse.js';

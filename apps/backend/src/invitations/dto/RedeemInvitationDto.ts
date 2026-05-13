@@ -1,4 +1,4 @@
-import { IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 /**
  * `POST /invitations/redeem` body.
@@ -16,19 +16,22 @@ export class RedeemInvitationDto {
     @MinLength(1)
     public token!: string;
 
+    @IsOptional()
     @IsString()
     @MinLength(1)
     @MaxLength(80)
-    public firstName!: string;
+    public firstName?: string;
 
+    @IsOptional()
     @IsString()
     @MinLength(1)
     @MaxLength(80)
-    public lastName!: string;
+    public lastName?: string;
 
+    @IsOptional()
     @IsString()
     @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'dateOfBirth must be in YYYY-MM-DD format' })
-    public dateOfBirth!: string;
+    public dateOfBirth?: string;
 
     @IsString()
     @MinLength(8)

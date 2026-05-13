@@ -1,6 +1,6 @@
 # M06 — LMS Access
 
-> **Status:** pending · **Owner:** mes-orchestrator → mes-shared-maintainer → mes-backend-nestjs → mes-frontend-react → mes-qa-engineer → reviewers → mes-scribe
+> **Status:** done · **Owner:** mes-orchestrator → mes-shared-maintainer → mes-backend-nestjs → mes-frontend-react → mes-qa-engineer → reviewers → mes-scribe
 
 ## Goal
 
@@ -58,4 +58,4 @@ M05 (students exist + enrolments exist).
 
 ## Outcome
 
-In progress. Delivered so far: `LmsPage` with STUDENT role gate (redirects non-students to `/login`). Remaining deliverables — lessons backend, `/me/courses`, `/courses/:id/lessons`, `/lessons/:id`, lessons migration, seed data, frontend course/lesson pages — not yet implemented.
+Done. Delivered: `LessonsEntity`, `LessonsRepository`, `LessonsService`, `LessonsController` (full CRUD scaffolding). Migration `20260513170000-CreateLessonsTable` with seed 3–5 lessons per course. Three backend endpoints: `GET /me/courses`, `GET /courses/:id/lessons`, `GET /lessons/:id` — all STUDENT-only, enrolment-gated, with 403 NOT_ENROLLED enumeration-resistance (oracle per ADR 0005). Frontend routes: `#/lms` (dashboard), `#/lms/courses/:id` (lesson list), `#/lms/lessons/:id` (lesson detail) with graceful error handling and redirects. Tests: 15 backend e2e + 24 frontend unit (all green). Two reviewer rounds — Round 1: 1 lint blocker (missing imports) + 1 enumeration high (courseId leak) + 5 mediums (spacing, naming, error handling) fixed. Round 2: 1 details-leak high (unfiltered error response) + 2 clean-code mediums (function length, nesting) fixed. Zero blockers/highs at closure. Feature doc `docs/features/lms-access.md` written.

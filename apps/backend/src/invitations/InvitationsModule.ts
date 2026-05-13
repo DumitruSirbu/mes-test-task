@@ -4,8 +4,7 @@ import { InvitationEntity } from './entity/InvitationEntity';
 import { InvitationsRepository } from './repository/InvitationsRepository';
 import { InvitationsService } from './service/InvitationsService';
 import { InvitationsController } from './controller/InvitationsController';
-import { EnrolmentEntity } from '../enrolments/entity/EnrolmentEntity';
-import { EnrolmentsRepository } from '../enrolments/repository/EnrolmentsRepository';
+import { EnrolmentsModule } from '../enrolments/EnrolmentsModule';
 import { UsersModule } from '../users/UsersModule';
 import { AuthModule } from '../auth/AuthModule';
 
@@ -16,14 +15,13 @@ import { AuthModule } from '../auth/AuthModule';
  * check and student user creation inside the redeem transaction). `AuthModule` is imported
  * to resolve `AuthService` (token issuance after successful redemption).
  *
- * `EnrolmentEntity` is registered here (not in a separate EnrolmentsModule) because the
- * `EnrolmentsRepository` is only consumed by the redemption flow — no other feature
- * needs enrolment writes in v1.
+ * `EnrolmentsModule` is imported to provide `EnrolmentsRepository` — the enrolment
+ * entity and repository are owned by that module and shared with `LessonsModule`.
  */
 @Module({
-    imports: [TypeOrmModule.forFeature([InvitationEntity, EnrolmentEntity]), UsersModule, AuthModule],
+    imports: [TypeOrmModule.forFeature([InvitationEntity]), EnrolmentsModule, UsersModule, AuthModule],
     controllers: [InvitationsController],
-    providers: [InvitationsRepository, InvitationsService, EnrolmentsRepository],
+    providers: [InvitationsRepository, InvitationsService],
     exports: [InvitationsService, InvitationsRepository],
 })
 export class InvitationsModule {}

@@ -6,6 +6,12 @@ import { useAuth } from '../auth/authStore';
 import { navigate } from '../router/router';
 import { generateUuid } from '../util/uuid';
 import { formatPricePence } from '../util/formatPrice';
+import {
+    CHECKOUT_FLASH_KIND_ALREADY_ENROLLED,
+    CHECKOUT_FLASH_STORAGE_KEY,
+    PURCHASE_ALREADY_EXISTS_FOR_STUDENT_CODE,
+    type ICheckoutFlash,
+} from '../util/checkoutFlash';
 
 interface IProps {
     courseId: string;
@@ -95,6 +101,19 @@ export const CheckoutPage = ({ courseId }: IProps): ReactElement => {
             sessionStorage.setItem(LAST_PURCHASE_STORAGE_KEY, JSON.stringify(purchase));
             navigate('/checkout/success');
         } catch (err) {
+            if (err instanceof ApiError && err.status === 409 && err.code === PURCHASE_ALREADY_EXISTS_FOR_STUDENT_CODE) {
+                const flash: ICheckoutFlash = {
+                    kind: CHECKOUT_FLASH_KIND_ALREADY_ENROLLED,
+                    studentEmail,
+                    courseId,
+                };
+
+                sessionStorage.setItem(CHECKOUT_FLASH_STORAGE_KEY, JSON.stringify(flash));
+                navigate(`/courses/${courseId}`);
+
+                return;
+            }
+
             setError(err instanceof ApiError ? err.message : 'Checkout failed.');
         } finally {
             setSubmitting(false);
@@ -111,7 +130,9 @@ export const CheckoutPage = ({ courseId }: IProps): ReactElement => {
 
     return (
         <div className="page">
-            <a href={`#/courses/${course.id}`}>← Back</a>
+            <div className="page-actions">
+                <button type="button" className="back-button" onClick={() => navigate(`/courses/${course.id}`)}>← Back</button>
+            </div>
             <h1>Checkout — {course.title}</h1>
             <p>{course.subject} · Year {course.yearFrom}{course.yearTo !== course.yearFrom ? `–${course.yearTo}` : ''}</p>
             <p className="price">{formatPricePence(course.pricePence)}</p>

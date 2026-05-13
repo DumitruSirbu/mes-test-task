@@ -12,8 +12,7 @@ import { InvitationsRepository } from './InvitationsRepository';
 function buildMockManager(queryResult: unknown): EntityManager {
     return {
         query: jest.fn().mockResolvedValue(queryResult),
-        create: <T extends object>(_EntityClass: new () => T, data: Partial<T>): T =>
-            Object.assign(new _EntityClass(), data),
+        create: <T extends object>(_EntityClass: new () => T, data: Partial<T>): T => Object.assign(new _EntityClass(), data),
     } as unknown as EntityManager;
 }
 

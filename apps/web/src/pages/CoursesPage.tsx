@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactElement } from 'react';
-import type { ICourseResponse } from '@mes/shared';
+import { PurchaseStatusEnum, UserRoleEnum } from '@mes/shared';
+import type { ICourseResponse, IPurchaseResponse } from '@mes/shared';
 import { apiRequest, ApiError } from '../api/apiClient';
 import { formatPricePence } from '../util/formatPrice';
 import { useAuth } from '../auth/authStore';
@@ -10,8 +11,10 @@ import { useAuth } from '../auth/authStore';
  */
 export const CoursesPage = (): ReactElement => {
     const [courses, setCourses] = useState<ICourseResponse[] | null>(null);
+    const [purchasedCourseIds, setPurchasedCourseIds] = useState<Set<number>>(new Set());
     const [error, setError] = useState<string | null>(null);
     const auth = useAuth();
+    const isParent = auth?.role === UserRoleEnum.PARENT;
 
     useEffect(() => {
         let cancelled = false;
@@ -37,6 +40,38 @@ export const CoursesPage = (): ReactElement => {
         };
     }, []);
 
+    useEffect(() => {
+        if (!isParent || !auth) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadPurchases = async (): Promise<void> => {
+            try {
+                const purchases = await apiRequest<IPurchaseResponse[]>('/me/purchases', {
+                    token: auth.accessToken,
+                });
+
+                if (!cancelled) {
+                    const completedCourseIds = purchases
+                        .filter((purchase) => purchase.status === PurchaseStatusEnum.COMPLETED)
+                        .map((purchase) => purchase.courseId);
+
+                    setPurchasedCourseIds(new Set(completedCourseIds));
+                }
+            } catch {
+                // Badge is a non-critical UX hint; swallow errors so the catalog still renders.
+            }
+        };
+
+        void loadPurchases();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [auth, isParent]);
+
     if (error) {
         return <p role="alert" className="error">{error}</p>;
     }
@@ -52,6 +87,9 @@ export const CoursesPage = (): ReactElement => {
             <ul className="course-list">
                 {courses.map((course) => (
                     <li key={course.id} className="course-card">
+                        {isParent && purchasedCourseIds.has(course.id) ? (
+                            <span className="purchased-badge">Purchased</span>
+                        ) : null}
                         <h2>{course.title}</h2>
                         <p>
                             {course.subject} · Year {course.yearFrom}

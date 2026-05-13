@@ -12,6 +12,7 @@ import { InvitationEntity } from '../../invitations/entity/InvitationEntity';
 import { IdempotencyService } from '../../common/idempotency/service/IdempotencyService';
 import { CreatePurchaseDto } from '../dto/CreatePurchaseDto';
 import { PURCHASE_CREATED_STATUS, PURCHASE_ENDPOINT_SIGNATURE } from '../const/PurchasesConsts';
+import { DuplicatePurchaseForStudentError } from '../../common/error/DuplicatePurchaseForStudentError';
 
 interface ICreateArgs {
     parentUserId: number;
@@ -39,6 +40,8 @@ interface ITransactionResult {
  *
  * Failure paths:
  *   - Course missing → CourseNotFoundError (404), thrown before opening the transaction.
+ *   - Parent already purchased the same course for the same student email →
+ *     DuplicatePurchaseForStudentError (409), thrown before opening the transaction.
  *   - Invitation insert throws → the transaction rolls back; no purchase row is left behind.
  *   - Idempotency UNIQUE violation (concurrent racer) → `IdempotencyService` translates
  *     the QueryFailedError into `IdempotencyBodyMismatchError` (if hashes differ); the
@@ -60,6 +63,9 @@ export class PurchasesService {
 
     public async createPurchase(args: ICreateArgs): Promise<IPurchaseResponse> {
         const course = await this.coursesService.findByIdOrThrow(args.body.courseId);
+
+        await this.assertNoDuplicatePurchaseByParent(args.parentUserId, course.courseId, args.body.studentEmail);
+
         const result = await this.runCreateTransaction(args, course);
 
         this.logger.log(
@@ -106,6 +112,26 @@ export class PurchasesService {
      */
     public static get endpointSignature(): string {
         return PURCHASE_ENDPOINT_SIGNATURE;
+    }
+
+    /**
+     * Guard: reject with 409 if the calling parent has already completed a purchase for the
+     * same course AND the same student email. Runs AFTER the course existence check so an
+     * unknown courseId still surfaces as 404, not 409. No rows are written before this returns.
+     *
+     * Scoped to the calling parent on purpose — see DuplicatePurchaseForStudentError for the
+     * privacy rationale. The strict invariant against duplicate enrolments across all parents
+     * is still enforced at invitation-redemption time by the unique index on
+     * `enrolments(student_user_id, course_id)` (ADR 0006). This guard is therefore best-effort
+     * UX: it eliminates the most common case (same parent, same student) without leaking
+     * cross-parent state.
+     */
+    private async assertNoDuplicatePurchaseByParent(parentUserId: number, courseId: number, studentEmail: string): Promise<void> {
+        const exists = await this.purchasesRepository.existsCompletedForParentCourseAndStudent(parentUserId, courseId, studentEmail);
+
+        if (exists) {
+            throw new DuplicatePurchaseForStudentError();
+        }
     }
 
     private async runCreateTransaction(args: ICreateArgs, course: CourseEntity): Promise<ITransactionResult> {

@@ -14,4 +14,11 @@ export interface IInvitationMetaResponse {
     studentEmail: string;
     expiresAt: string;
     status: InvitationStatusEnum;
+    /**
+     * True iff a STUDENT user already exists for `studentEmail`. The frontend uses
+     * this to render a password-only form (sign-in + enrol) instead of the full
+     * account-creation form. Existence is only revealed to a caller that already
+     * possesses the unguessable invitation token, so this is not an enumeration leak.
+     */
+    hasExistingStudentAccount: boolean;
 }

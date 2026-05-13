@@ -15,6 +15,8 @@ import { InvitationNotFoundError } from '../../common/error/InvitationNotFoundEr
 import { InvitationExpiredError } from '../../common/error/InvitationExpiredError';
 import { InvitationAlreadyRedeemedError } from '../../common/error/InvitationAlreadyRedeemedError';
 import { InvitationEmailConflictError } from '../../common/error/InvitationEmailConflictError';
+import { EnrolmentAlreadyExistsError } from '../../common/error/EnrolmentAlreadyExistsError';
+import { ValidationFailedError } from '../../common/error/ValidationFailedError';
 import { ARGON2_MEMORY_COST, ARGON2_PARALLELISM, ARGON2_TIME_COST, PG_UNIQUE_VIOLATION } from '../../auth/const/AuthConsts';
 import {
     DEFAULT_INVITATION_BASE_URL,
@@ -61,7 +63,7 @@ export class InvitationsService {
     ): Promise<{ entity: InvitationEntity; plaintextToken: string }> {
         const plaintextToken = this.generatePlaintextToken();
         const tokenHash = this.hashToken(plaintextToken);
-        const expiresAt = new Date(Date.now() + INVITATION_EXPIRY_DAYS * MILLIS_PER_DAY);
+        const expiresAt = this.computeExpiryDate();
 
         const entity = await this.invitationsRepository.insertWithinTransaction(manager, {
             purchaseId: params.purchaseId,
@@ -94,11 +96,12 @@ export class InvitationsService {
      * Algorithm:
      *   1. Hash the plaintext token.
      *   2. Atomic conditional UPDATE (ISSUED + not expired → REDEEMED). If 0 rows: disambiguate.
-     *   3. Check for email conflict against `users` table.
-     *   4. Hash password with argon2id.
-     *   5. Insert new STUDENT user.
-     *   6. Insert enrolment row.
-     *   7. Return the newly created `UserEntity` so the caller can issue a JWT.
+     *   3. Look up whether the invitation's student email already belongs to an existing user.
+     *   4a. No existing user → new STUDENT path: hash password, insert user, insert enrolment.
+     *   4b. Existing user is not a STUDENT (e.g. PARENT) → throw InvitationEmailConflictError.
+     *   4c. Existing STUDENT → verify password. Wrong password → throw InvitationEmailConflictError.
+     *       Correct password → insert enrolment for the existing student (idempotent on duplicate).
+     *   5. Return the user entity so the caller can issue a JWT.
      */
     public async redeemInTransaction(manager: EntityManager, params: RedeemInvitationDto): Promise<{ user: UserEntity }> {
         const tokenHash = this.hashToken(params.token);
@@ -106,9 +109,11 @@ export class InvitationsService {
 
         const existingUser = await this.usersRepository.findByEmail(invitation.studentEmail);
 
-        if (existingUser) {
-            throw new InvitationEmailConflictError();
+        if (existingUser !== null) {
+            return this.redeemForExistingUser(manager, invitation, existingUser, params.password);
         }
+
+        this.assertNewAccountFieldsPresent(params);
 
         const passwordHash = await this.hashPassword(params.password);
         const newUser = await this.insertStudentUser(manager, params, invitation.studentEmail, passwordHash);
@@ -146,12 +151,16 @@ export class InvitationsService {
             throw new InvitationNotFoundError();
         }
 
+        const existingUser = await this.usersRepository.findByEmail(invitation.studentEmail);
+        const hasExistingStudentAccount = existingUser !== null && existingUser.role === UserRoleEnum.STUDENT;
+
         return {
             courseTitle: purchase.course.title,
             parentEmail: purchase.parent.email,
             studentEmail: invitation.studentEmail,
             expiresAt: invitation.expiresAt.toISOString(),
             status: invitation.status,
+            hasExistingStudentAccount,
         };
     }
 
@@ -167,6 +176,65 @@ export class InvitationsService {
 
     public hashToken(plaintext: string): string {
         return createHash(INVITATION_TOKEN_HASH_ALGORITHM).update(plaintext).digest('hex');
+    }
+
+    /**
+     * Handle redemption when the invitation's student email already belongs to an existing user.
+     *
+     * Rules:
+     *   - Non-STUDENT role (e.g. PARENT): throw InvitationEmailConflictError — we cannot
+     *     repurpose a parent account as a student.
+     *   - STUDENT role + wrong password: throw InvitationEmailConflictError (oracle-resistant:
+     *     the caller cannot distinguish "email taken" from "wrong password").
+     *   - STUDENT role + correct password: insert enrolment (idempotent on duplicate) and
+     *     return the existing user so the caller can issue a JWT — the student is logged in.
+     */
+    private async redeemForExistingUser(
+        manager: EntityManager,
+        invitation: InvitationEntity,
+        existingUser: UserEntity,
+        password: string,
+    ): Promise<{ user: UserEntity }> {
+        if (existingUser.role !== UserRoleEnum.STUDENT) {
+            throw new InvitationEmailConflictError();
+        }
+
+        let passwordMatches: boolean;
+
+        try {
+            passwordMatches = await argon2.verify(existingUser.passwordHash, password);
+        } catch {
+            // Malformed hash (e.g. test stub) — treat as mismatch; oracle-resistant.
+            passwordMatches = false;
+        }
+
+        if (!passwordMatches) {
+            throw new InvitationEmailConflictError();
+        }
+
+        const courseId = await this.resolveCourseId(manager, invitation);
+
+        try {
+            await this.enrolmentsRepository.insertWithinTransaction(manager, {
+                studentUserId: existingUser.userId,
+                courseId,
+                sourceInvitationId: invitation.invitationId,
+            });
+        } catch (error) {
+            if (error instanceof EnrolmentAlreadyExistsError) {
+                // Idempotent: student already enrolled. Log and continue — invitation is already
+                // marked REDEEMED and the JWT should still be issued to the existing student.
+                this.logger.warn(
+                    `Existing student userId=${existingUser.userId} already enrolled in courseId=${courseId}; skipping duplicate enrolment insert`,
+                );
+            } else {
+                throw error;
+            }
+        }
+
+        this.logger.log(`Invitation redeemed by existing student: id=${invitation.invitationId} userId=${existingUser.userId}`);
+
+        return { user: existingUser };
     }
 
     private async resolveOrThrow(manager: EntityManager, tokenHash: string): Promise<InvitationEntity> {
@@ -187,6 +255,31 @@ export class InvitationsService {
         }
 
         throw new InvitationExpiredError();
+    }
+
+    /**
+     * Enforce that the new-account fields are present when no existing user is being
+     * enrolled. They are optional in the wire schema (existing-student path ignores
+     * them) but required here.
+     */
+    private assertNewAccountFieldsPresent(params: RedeemInvitationDto): void {
+        const missing: Record<string, string[]> = {};
+
+        if (!params.firstName) {
+            missing.firstName = ['firstName is required to create a new account'];
+        }
+
+        if (!params.lastName) {
+            missing.lastName = ['lastName is required to create a new account'];
+        }
+
+        if (!params.dateOfBirth) {
+            missing.dateOfBirth = ['dateOfBirth is required to create a new account'];
+        }
+
+        if (Object.keys(missing).length > 0) {
+            throw new ValidationFailedError(missing);
+        }
     }
 
     private async insertStudentUser(manager: EntityManager, params: RedeemInvitationDto, email: string, passwordHash: string): Promise<UserEntity> {
@@ -227,6 +320,10 @@ export class InvitationsService {
 
     private generatePlaintextToken(): string {
         return randomBytes(TOKEN_BYTE_LENGTH).toString('base64url');
+    }
+
+    private computeExpiryDate(): Date {
+        return new Date(Date.now() + INVITATION_EXPIRY_DAYS * MILLIS_PER_DAY);
     }
 
     private buildInvitationUrl(plaintextToken: string): string {

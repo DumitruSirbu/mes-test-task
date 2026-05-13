@@ -31,9 +31,19 @@ Hash-based SPA routes (no third-party router added):
 
 The auth store is `localStorage`-backed; the route view checks `auth.role === UserRoleEnum.PARENT` before letting the parent into checkout.
 
+## Pre-transaction duplicate-purchase check
+
+Before opening the transaction, `POST /purchases` runs a parent-scoped duplicate check:
+- Query `purchases` JOIN `invitations` for `(parent_user_id = caller, course_id = body.courseId, status = COMPLETED, invitation.student_email = body.studentEmail)`.
+- If a row exists, return **HTTP 409 `PURCHASE_ALREADY_EXISTS_FOR_STUDENT`** immediately. No purchase row, no invitation, no email is created.
+
+Scope rationale: the check is restricted to the **calling parent's own purchases** so the endpoint does not act as a `(studentEmail, courseId)` enrolment-existence oracle for other accounts. Cross-parent duplicates are still caught at invitation redemption time by the unique index on `enrolments(student_user_id, course_id)` (ADR 0006) — the precheck is best-effort UX, not the strict invariant.
+
+The frontend catches the 409, navigates back to the course detail page, and displays a one-shot flash message: "{studentEmail} is already enrolled in this course."
+
 ## Atomic write (ADR 0006)
 
-`POST /purchases` runs three INSERTs inside a single TypeORM transaction:
+`POST /purchases` runs three INSERTs inside a single TypeORM transaction (only after the duplicate-purchase precheck succeeds):
 
 1. `purchases` — status `COMPLETED`, `amount_pence` snapshot of the course price at purchase time, denormalised `idempotency_key`.
 2. `invitations` — `token_hash = SHA-256(plaintextToken)`, `status = ISSUED`, `expires_at = now + 14 days`. The plaintext token escapes the service only in the create response.
@@ -52,6 +62,20 @@ If any of the three INSERTs fails the transaction rolls back; there is no half-p
   - body differs → `IDEMPOTENCY_BODY_MISMATCH` (409).
 
 The raw `QueryFailedError` is never surfaced as a 500; it is attached to the wrapping `DomainError` as `cause` for log correlation.
+
+## Frontend checkout flow (duplicate-purchase precheck)
+
+When a parent submits the checkout form with a student email:
+
+1. **`CheckoutPage` sends:** `POST /purchases` with `courseId` and `studentEmail` (+ `Idempotency-Key`).
+2. **Backend responds 201:** Happy path — parent is shown the invitation URL with copy-to-clipboard.
+3. **Backend responds 409 `PURCHASE_ALREADY_EXISTS_FOR_STUDENT`:**
+   - `CheckoutPage` catches the error and writes a one-shot `mes.checkoutFlash.v1` entry to `sessionStorage` carrying `{ kind: 'already-enrolled', studentEmail, courseId }`.
+   - Navigates to `#/courses/:id` (the course detail page).
+   - `CourseDetailPage` reads the flash on mount; if `flash.courseId` matches the current route param, it consumes (removes) the entry and renders: "{studentEmail} is already enrolled in this course." Otherwise the entry is left untouched so the right page can consume it.
+   - Malformed entries are discarded silently.
+
+Shared constants for the storage key, the flash discriminant, and the backend error code live in `apps/web/src/util/checkoutFlash.ts` so writer (`CheckoutPage`) and reader (`CourseDetailPage`) cannot drift.
 
 ## RBAC
 

@@ -24,6 +24,8 @@ import { InvitationEntity } from './invitations/entity/InvitationEntity';
 import { PurchasesModule } from './purchases/PurchasesModule';
 import { PurchaseEntity } from './purchases/entity/PurchaseEntity';
 import { EnrolmentEntity } from './enrolments/entity/EnrolmentEntity';
+import { LessonsModule } from './lessons/LessonsModule';
+import { LessonEntity } from './lessons/entity/LessonEntity';
 
 /**
  * Root module. Order matters:
@@ -46,7 +48,7 @@ import { EnrolmentEntity } from './enrolments/entity/EnrolmentEntity';
             inject: [ConfigService],
             useFactory: (config: ConfigService) => ({
                 ...buildPostgresOptionsFromConfig(config),
-                entities: [UserEntity, CourseEntity, PurchaseEntity, InvitationEntity, IdempotencyKeyEntity, EnrolmentEntity],
+                entities: [UserEntity, CourseEntity, PurchaseEntity, InvitationEntity, IdempotencyKeyEntity, EnrolmentEntity, LessonEntity],
             }),
         }),
         UsersModule,
@@ -56,6 +58,7 @@ import { EnrolmentEntity } from './enrolments/entity/EnrolmentEntity';
         InvitationsModule,
         IdempotencyModule,
         PurchasesModule,
+        LessonsModule,
     ],
     controllers: [AppController],
     providers: [

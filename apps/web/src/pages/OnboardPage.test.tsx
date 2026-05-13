@@ -20,6 +20,7 @@ const STUB_META: IInvitationMetaResponse = {
     studentEmail: 'student@example.com',
     expiresAt: '2026-06-01T00:00:00.000Z',
     status: InvitationStatusEnum.ISSUED,
+    hasExistingStudentAccount: false,
 };
 
 const STUB_TOKEN = 'invite-token-abc';
@@ -115,7 +116,7 @@ describe('OnboardPage form submission', () => {
         await fillForm(user);
         await user.click(screen.getByRole('button', { name: /create account/i }));
 
-        await screen.findByText(/account with this email already exists/i);
+        await screen.findByText(/this email is registered to a non-student account/i);
         expect(vi.mocked(navigate)).not.toHaveBeenCalled();
     });
 
@@ -127,6 +128,28 @@ describe('OnboardPage form submission', () => {
         await screen.findByText(/invitation has already been used/i);
         expect(screen.queryByRole('button', { name: /create account/i })).toBeNull();
         expect(vi.mocked(redeemInvitation)).not.toHaveBeenCalled();
+    });
+
+    it('renders only the password field when hasExistingStudentAccount is true', async () => {
+        vi.mocked(fetchInvitationMeta).mockResolvedValue({ ...STUB_META, hasExistingStudentAccount: true });
+
+        const user = userEvent.setup();
+        render(<OnboardPage token={STUB_TOKEN} />);
+
+        await screen.findByText(/welcome back/i);
+        expect(screen.queryByLabelText(/first name/i)).toBeNull();
+        expect(screen.queryByLabelText(/last name/i)).toBeNull();
+        expect(screen.queryByLabelText(/date of birth/i)).toBeNull();
+        expect(screen.queryByLabelText(/confirm password/i)).toBeNull();
+
+        await user.type(screen.getByLabelText(/password/i), 'Secret1234');
+        await user.click(screen.getByRole('button', { name: /add course/i }));
+
+        expect(vi.mocked(redeemInvitation)).toHaveBeenCalledWith({
+            token: STUB_TOKEN,
+            password: 'Secret1234',
+        });
+        expect(vi.mocked(navigate)).toHaveBeenCalledWith('/lms');
     });
 
     it('shows an expired message without the form when meta status is EXPIRED', async () => {
