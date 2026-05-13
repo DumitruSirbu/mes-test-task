@@ -49,9 +49,9 @@ Specialist agents are defined in `.claude/agents/` (also accessible via `.agents
 
 ## Current milestone
 
-→ All core milestones shipped (M01–M06).
+→ `milestones/M06-lms.md`
 
-(M01 — Foundation: done. M02 — Architecture & ADRs: done. M03 — Backend Auth, RBAC & Logging: done. M04 — Purchase & Invitation: done. M05 — Student Onboarding & Activation: done. M06 — LMS Dashboard: done.)
+(M01 — Foundation: done. M02 — Architecture & ADRs: done. M03 — Backend Auth, RBAC & Logging: done. M04 — Purchase & Invitation: done. M05 — Student Onboarding & Activation: done. M06 — LMS Dashboard: in progress.)
 
 (The scribe keeps this pointer current.)
 

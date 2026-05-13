@@ -58,4 +58,4 @@ M05 (students exist + enrolments exist).
 
 ## Outcome
 
-Shipped three student-only LMS endpoints (HTTP 200, role-gated): `GET /me/courses` (returns enrolled courses), `GET /courses/:id/lessons` (enrolment check), `GET /lessons/:id` (enrolment check). Created `LessonEntity` + `LessonsRepository` + `LessonsService`. Lessons seed migration with 3–5 lessons per course. Frontend: `/lms` dashboard listing enrolled courses, `/lms/courses/:id` showing lessons, `/lms/lessons/:id` lesson detail — all `STUDENT`-only with redirect to `/login` for unauthenticated users. Shared: `ILessonResponse`, `ICourseWithLessonsResponse` types. Tests: 11+ backend e2e + 10+ frontend unit passing. All reviewers green; 0 blockers. Enrolment enforcement validated; cross-tenant isolation confirmed.
+In progress. Delivered so far: `LmsPage` with STUDENT role gate (redirects non-students to `/login`). Remaining deliverables — lessons backend, `/me/courses`, `/courses/:id/lessons`, `/lessons/:id`, lessons migration, seed data, frontend course/lesson pages — not yet implemented.
