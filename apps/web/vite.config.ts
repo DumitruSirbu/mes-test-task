@@ -7,6 +7,8 @@ export default defineConfig({
     server: {
         port: 5173,
         strictPort: true,
+        // Uncomment to proxy /api calls to the backend during local dev:
+        // proxy: { '/api': 'http://localhost:3010' },
     },
     preview: {
         port: 5173,

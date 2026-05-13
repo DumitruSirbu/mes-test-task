@@ -13,7 +13,7 @@ See `.env.example` for the full canonical list with safe defaults.
 | `REDIS_PORT` | ✅ | `6379` | backend | Redis port |
 | `REDIS_PASSWORD` | ❌ | (empty) | backend | Optional Redis auth |
 | `NODE_ENV` | ✅ | `development` | backend | Environment marker |
-| `BACKEND_PORT` | ✅ | `3000` | backend | HTTP port |
+| `BACKEND_PORT` | ✅ | `3010` | backend | HTTP port |
 | `JWT_SECRET` | ✅ | (dev-only default) | backend | JWT signing secret — REQUIRED in prod |
 | `JWT_EXPIRES_IN` | ❌ | `15m` | backend | Access token TTL |
 | `JWT_REFRESH_EXPIRES_IN` | ❌ | `7d` | backend | Refresh token TTL (if implemented) |
@@ -23,4 +23,4 @@ See `.env.example` for the full canonical list with safe defaults.
 | `INVITATION_TOKEN_TTL_HOURS` | ❌ | `72` | backend | Invitation expiry |
 | `WEB_PORT` | ❌ | `5173` | web | Vite dev/preview port |
 | `ADMIN_PORT` | ❌ | `5174` | admin | Vite dev/preview port |
-| `VITE_API_BASE_URL` | ✅ | `http://localhost:3000` | web + admin | Backend base URL (build-time) |
+| `VITE_API_BASE_URL` | ✅ | `http://localhost:3010` | web + admin | Backend base URL (build-time) |

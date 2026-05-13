@@ -38,11 +38,11 @@ _(filled in M09 with the final exact commands)_
 ```bash
 git clone <repo>
 cd mes-test-task
-cp .env.example .env
+cp .env.example .env     # required before docker compose up — never committed
 docker compose up        # postgres + redis (+ apps in M09)
 ```
 
-For local dev (without containerising the apps): `pnpm install`, then `pnpm dev:backend`, `pnpm dev:web`, `pnpm dev:admin` in three terminals.
+For local dev (without containerising the apps): `pnpm install`, then `pnpm dev:backend` (port 3010), `pnpm dev:web`, `pnpm dev:admin` in three terminals.
 
 ## 5. Environment variables
 

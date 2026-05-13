@@ -34,7 +34,9 @@ See the agent definitions in `.claude/agents/` (also accessible via `.agents/age
 
 ## Current milestone
 
-→ `milestones/M01-foundation.md`
+→ `milestones/M03-backend-auth-rbac.md`
+
+(M01 — Foundation: done. M02 — Architecture & ADRs: done.)
 
 (The scribe keeps this pointer current.)
 

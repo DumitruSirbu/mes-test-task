@@ -1,5 +1,7 @@
 name: mes
 
+# Local-dev infra only. See docs/development/docker.md for env-injection strategy and the M09 backend service spec.
+
 services:
     postgres:
         image: postgres:16-alpine
@@ -32,9 +34,6 @@ services:
             interval: 5s
             timeout: 5s
             retries: 10
-
-    # The backend / web / admin services are added in M09 when apps are containerised.
-    # For M01-M08, run apps locally with `pnpm dev:*` against this postgres + redis.
 
 volumes:
     postgres_data:
