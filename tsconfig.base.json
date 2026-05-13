@@ -1,0 +1,24 @@
+{
+    "compilerOptions": {
+        "target": "ES2023",
+        "module": "nodenext",
+        "moduleResolution": "nodenext",
+        "lib": ["ES2023"],
+        "strict": true,
+        "strictNullChecks": true,
+        "noImplicitAny": true,
+        "strictBindCallApply": true,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "declaration": true,
+        "sourceMap": true,
+        "paths": {
+            "@mes/shared": ["./packages/shared/src/index.ts"],
+            "@mes/shared/*": ["./packages/shared/src/*"]
+        }
+    }
+}

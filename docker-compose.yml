@@ -1,0 +1,41 @@
+name: mes
+
+services:
+    postgres:
+        image: postgres:16-alpine
+        container_name: mes-postgres
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER:-mes}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mes_dev_password}
+            POSTGRES_DB: ${POSTGRES_DB:-mes}
+        ports:
+            - '${POSTGRES_PORT:-5432}:5432'
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-mes} -d ${POSTGRES_DB:-mes}']
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    redis:
+        image: redis:7-alpine
+        container_name: mes-redis
+        restart: unless-stopped
+        ports:
+            - '${REDIS_PORT:-6379}:6379'
+        volumes:
+            - redis_data:/data
+        healthcheck:
+            test: ['CMD', 'redis-cli', 'ping']
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    # The backend / web / admin services are added in M09 when apps are containerised.
+    # For M01-M08, run apps locally with `pnpm dev:*` against this postgres + redis.
+
+volumes:
+    postgres_data:
+    redis_data:
