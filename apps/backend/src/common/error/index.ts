@@ -4,3 +4,7 @@ export * from './UnauthorizedError';
 export * from './ForbiddenError';
 export * from './UserEmailTakenError';
 export * from './ValidationFailedError';
+export * from './CourseNotFoundError';
+export * from './IdempotencyKeyRequiredError';
+export * from './IdempotencyBodyMismatchError';
+export * from './IdempotencyKeyReusedError';

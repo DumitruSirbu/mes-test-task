@@ -40,11 +40,16 @@ M02 (auth-and-rbac.md, ADR 0003, ADR 0005 must exist).
 
 ## Agent dispatch plan
 
-1. **mes-shared-maintainer** writes the enums + types + Zod schemas in `packages/shared/`.
-2. **mes-backend-nestjs** writes modules + migration + `BaseRepository` integration + global filter/pipe/guards.
-3. **mes-qa-engineer** writes unit + integration tests.
-4. **Reviewers in parallel:** security (JWT, hashing, redaction, RBAC), logic (signup → login → me flow), clean-code (conventions adherence).
-5. **mes-scribe** updates `docs/architecture/auth-and-rbac.md` with final shapes if anything drifted; updates work-log.
+| Wave | Agents (dispatched in one message) | Runs after |
+|------|-------------------------------------|------------|
+| 1 | `mes-scribe` — log start time in work-log | — |
+| 2 | `mes-shared-maintainer` — enums, types, Zod schemas | Wave 1 |
+| 3 | `mes-backend-nestjs` — modules, migration, guards, filter, pipe | Wave 2 |
+| 4 | `mes-qa-engineer` — unit + integration tests | Wave 3 |
+| 5 | `mes-review-security` **∥** `mes-review-logic` **∥** `mes-review-clean-code` | Wave 4 |
+| 6 | `mes-scribe` — update `docs/architecture/auth-and-rbac.md` if shapes drifted, close work-log row | Wave 5 |
+
+> Note: backend is the only implementation concern in this milestone (no frontend), so Wave 3 has no parallel opportunity.
 
 ## Definition of Done
 

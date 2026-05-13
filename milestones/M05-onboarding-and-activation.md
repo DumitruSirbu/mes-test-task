@@ -1,6 +1,6 @@
 # M05 — Student Onboarding & Activation
 
-> **Status:** pending · **Owner:** mes-orchestrator → mes-shared-maintainer → mes-backend-nestjs → mes-frontend-react → mes-qa-engineer → reviewers → mes-scribe
+> **Status:** done · **Owner:** mes-orchestrator → mes-shared-maintainer → mes-backend-nestjs → mes-frontend-react → mes-qa-engineer → reviewers → mes-scribe
 
 ## Goal
 
@@ -33,14 +33,26 @@ M04 (invitations exist and carry tokens).
 
 ## Agent dispatch plan
 
-1. **mes-shared-maintainer** lands the schema.
-2. **mes-backend-nestjs** lands the endpoint + service + transaction.
-3. **mes-frontend-react** lands `/onboard/:token` and form.
-4. **mes-qa-engineer** writes:
-   - Integration: redeem happy path; expired token → 410; already-redeemed → 409; bad token → 404.
-   - Frontend: form validation, success redirect.
-5. **Reviewers in parallel.**
-6. **mes-scribe** writes `docs/features/student-onboarding.md`.
+
+| Wave | Agents (dispatched in one message)                                           | Runs after |
+| ---- | ---------------------------------------------------------------------------- | ---------- |
+| 1    | `mes-scribe` — log start time in work-log                                    | —          |
+| 2    | `mes-shared-maintainer` — `redeemInvitationSchema` + shared types            | Wave 1     |
+| 3    | `mes-backend-nestjs` **∥** `mes-frontend-react`                              | Wave 2     |
+| 4    | `mes-qa-engineer` — integration + frontend tests                             | Wave 3     |
+| 5    | `mes-review-security` **∥** `mes-review-logic` **∥** `mes-review-clean-code` | Wave 4     |
+| 6    | `mes-scribe` — `docs/features/student-onboarding.md`, close work-log row     | Wave 5     |
+
+
+**Wave 3 detail (parallel):**
+
+- `mes-backend-nestjs`: `POST /invitations/redeem`, `GET /invitations/:token/meta`, domain exceptions, transaction.
+- `mes-frontend-react`: `/onboard/:token` route, landing page, onboarding form (RHF + zodResolver), success redirect to `/lms`.
+
+**Wave 4 detail:**
+
+- Integration: redeem happy path; expired token → 410; already-redeemed → 409; bad token → 404.
+- Frontend: form validation errors mapped by field; success stores JWT and redirects.
 
 ## Definition of Done
 

@@ -1,6 +1,8 @@
 name: mes
 
-# Local-dev infra only. See docs/development/docker.md for env-injection strategy and the M09 backend service spec.
+# Single-command startup. `docker compose up` builds and runs the full stack:
+# postgres + redis (infra) -> backend (NestJS, migrations on boot) -> web (Vite SPA via nginx).
+# Detailed rationale lives in docs/development/docker.md.
 
 services:
     postgres:
@@ -34,6 +36,68 @@ services:
             interval: 5s
             timeout: 5s
             retries: 10
+
+    backend:
+        build:
+            context: .
+            dockerfile: apps/backend/Dockerfile
+            target: runtime
+        container_name: mes-backend
+        restart: unless-stopped
+        env_file:
+            - path: .env
+              required: false # inject all vars at runtime — never COPY .env into the image
+        environment:
+            # Override hostnames so the container reaches the compose service names
+            # regardless of what the host's .env points at (e.g. localhost).
+            POSTGRES_HOST: postgres
+            POSTGRES_PORT: 5432
+            REDIS_HOST: redis
+            REDIS_PORT: 6379
+            NODE_ENV: ${NODE_ENV:-development}
+            BACKEND_PORT: ${BACKEND_PORT:-3010}
+            JWT_SECRET: ${JWT_SECRET:-REPLACE_ME_WITH_OPENSSL_RAND_HEX_32_BYTES_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}
+            JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+            LOG_LEVEL: ${LOG_LEVEL:-info}
+            LOG_PRETTY: ${LOG_PRETTY:-true}
+            CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:5174}
+            INVITATION_TOKEN_TTL_HOURS: ${INVITATION_TOKEN_TTL_HOURS:-336}
+        ports:
+            - '${BACKEND_PORT:-3010}:3010'
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD-SHELL', 'wget -qO- http://localhost:3010/health/ready || exit 1']
+            interval: 10s
+            timeout: 5s
+            retries: 10
+            start_period: 20s
+
+    web:
+        build:
+            context: .
+            dockerfile: apps/web/Dockerfile
+            target: runtime
+            args:
+                # Vite inlines VITE_* envs at build time. Pointing at the host port works
+                # because the browser (not the container) makes the API call.
+                VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3010}
+        container_name: mes-web
+        restart: unless-stopped
+        ports:
+            - '${WEB_PORT:-5173}:5173'
+        depends_on:
+            backend:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD-SHELL', 'wget -qO- http://localhost:5173/ >/dev/null 2>&1 || exit 1']
+            interval: 10s
+            timeout: 5s
+            retries: 10
+            start_period: 10s
 
 volumes:
     postgres_data:

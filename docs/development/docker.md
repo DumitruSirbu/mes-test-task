@@ -1,14 +1,67 @@
 # Docker
 
+## One-command startup
+
+```bash
+cp .env.example .env     # optional — compose defaults will work without it
+docker compose up        # builds + starts postgres, redis, backend, web
+```
+
+The first `docker compose up` builds the backend and web images (~30 s on a warm Docker
+cache); subsequent runs reuse the cached layers. Tear down with `docker compose down`
+(keep volumes) or `docker compose down -v` (wipe DB).
+
 ## Services in `docker-compose.yml`
 
-| Service | Image | Ports | Healthcheck |
-|---|---|---|---|
-| `postgres` | `postgres:16-alpine` | 5432 | `pg_isready` |
-| `redis` | `redis:7-alpine` | 6379 | `redis-cli ping` |
-| `backend` (M09) | local build | 3010 | `/health/ready` |
-| `web` (M09) | local build (nginx) | 5173 | `wget /` |
-| `admin` (M09) | local build (nginx) | 5174 | `wget /` |
+| Service    | Image / Source                  | Host Port | Healthcheck                       |
+|------------|---------------------------------|-----------|-----------------------------------|
+| `postgres` | `postgres:16-alpine`            | 5432      | `pg_isready`                      |
+| `redis`    | `redis:7-alpine`                | 6379      | `redis-cli ping`                  |
+| `backend`  | `apps/backend/Dockerfile`       | 3010      | `wget /health/ready`              |
+| `web`      | `apps/web/Dockerfile` (nginx)   | 5173      | `wget /`                          |
+
+`backend` depends on healthy `postgres` + `redis`; `web` depends on healthy `backend`.
+This means `docker compose up` blocks until the stack is reachable — no manual sequencing.
+
+If the host's 5432 or 6379 ports are occupied by another project, override per-run:
+
+```bash
+POSTGRES_PORT=55432 REDIS_PORT=56379 docker compose up
+```
+
+## Backend image (multi-stage)
+
+`apps/backend/Dockerfile` produces a slim Node 22 runtime image:
+
+1. **deps** — `pnpm install --frozen-lockfile` against the workspace manifests only.
+2. **build** — compiles `@mes/shared` (CommonJS-compatible JS via `tsconfig.build.json`)
+   and the backend (`nest build` → `apps/backend/dist`). Rewrites `packages/shared/package.json`
+   so the runtime image resolves `@mes/shared` to its compiled `dist/index.js`, not the
+   `.ts` source — the runtime image carries no ts-node.
+3. **runtime** — `node:22-alpine` + `tini` (PID 1 reaper) + `wget` (healthcheck) +
+   the workspace `node_modules`, compiled `dist/`, and the shared package.
+
+`apps/backend/docker-entrypoint.sh` runs **before** the Nest process every boot:
+
+```sh
+node ./node_modules/typeorm/cli.js migration:run -d dist/data-source.js
+exec node dist/main.js
+```
+
+Migration failures abort the boot — a backend that runs against a stale schema is worse
+than one that refuses to start (see ADR 0005). The typeorm CLI is invoked against the
+**compiled** data-source, so the runtime image does not need ts-node.
+
+## Web image (multi-stage)
+
+`apps/web/Dockerfile` produces an `nginx:alpine` image serving the static Vite bundle:
+
+1. **deps + build** — same workspace install recipe, then `vite build` emits
+   `apps/web/dist/`. `VITE_API_BASE_URL` is a **build-time arg** (Vite inlines
+   `import.meta.env.VITE_*` at compile time); rebuild the image to re-point the SPA
+   at a different API host.
+2. **runtime** — `nginx:1.27-alpine` with `apps/web/nginx.conf` (gzip on, long-cache
+   hashed assets, SPA fallback to `/index.html` for the hash-router).
 
 ## Env injection strategy
 
@@ -16,71 +69,40 @@ Docker Compose automatically loads the root `.env` file for `${VAR:-default}` in
 inside `docker-compose.yml`. That interpolation is **file-level only** — it does not reach
 the container's process env automatically.
 
-**Postgres and Redis** receive their config through their `environment:` blocks. Those vars are
-part of each image's expected env contract, so compose injects them directly; no `env_file:`
-is needed on those services.
+**Postgres and Redis** receive their config through their `environment:` blocks. Those
+vars are part of each image's expected env contract, so compose injects them directly.
 
-**App services (backend, web, admin — added in M09) MUST declare `env_file: - .env`** so
-that `process.env.*` reads inside the container are populated at runtime. Interpolation alone
-is not enough.
+**Backend** declares `env_file: - .env` (with `required: false`) so the container's
+`process.env.*` is populated at runtime. Compose-level `environment:` overrides force
+`POSTGRES_HOST=postgres` and `REDIS_HOST=redis` regardless of what the host's `.env`
+points at (e.g. `localhost` for native-dev workflow). All sensitive vars (`JWT_SECRET`)
+flow in via env interpolation only — never baked into image layers (see `.dockerignore`).
 
-**Copy `.env.example` to `.env` before the first `docker compose up`.** Without it, compose
-falls back to the `${VAR:-default}` defaults baked into `docker-compose.yml`, which is
-sufficient for a quick spin but not for any non-default config.
+**Web** receives `VITE_API_BASE_URL` as a build-time `args:` value. No runtime env file
+is needed because static bundles have no `process.env` access.
 
-**Never bake a `.env` file into an image via `COPY .env`.** Doing so embeds secrets into
-image layers, which persist in the image history even after the file is removed in a later
-layer. Always inject env vars at runtime via `env_file:` on the compose service (dev) or
-via orchestrator secrets (Kubernetes / ECS) in production.
+**Copy `.env.example` to `.env` before the first `docker compose up`** if you need to
+override any default (e.g. set a real `JWT_SECRET`). Without it, compose falls back to
+the `${VAR:-default}` defaults baked into `docker-compose.yml`, which is sufficient for
+local development.
+
+**Never bake a `.env` file into an image via `COPY .env`.** The `.dockerignore` at the
+repo root explicitly excludes `.env` (and `.env.*` except `.env.example`) so secrets
+cannot leak into image layers via the build context.
 
 `.env` is listed in `.gitignore`; only `.env.example` is committed.
-
-## Future: backend service (M09)
-
-Add this block to `docker-compose.yml` under `services:` when containerising the backend in M09.
-Do **not** add it before then — the service definition belongs in the same PR that adds the Dockerfile.
-
-```yaml
-backend:
-  build:
-    context: .
-    dockerfile: apps/backend/Dockerfile
-    target: runtime
-  container_name: mes-backend
-  restart: unless-stopped
-  env_file:
-    - path: .env
-      required: false       # inject all vars at runtime — never COPY .env into the image
-  environment:
-    POSTGRES_HOST: postgres # override host to the compose service name
-    REDIS_HOST: redis
-  ports:
-    - '${BACKEND_PORT:-3010}:${BACKEND_PORT:-3010}'
-  depends_on:
-    postgres:
-      condition: service_healthy
-    redis:
-      condition: service_healthy
-  healthcheck:
-    test: ['CMD-SHELL', 'wget -qO- http://localhost:${BACKEND_PORT:-3010}/health/ready || exit 1']
-    interval: 10s
-    timeout: 5s
-    retries: 10
-```
 
 ## Common commands
 
 ```bash
-docker compose up -d            # start infra only (M01-M08)
-docker compose up               # start everything (M09)
-docker compose logs -f backend
-docker compose down             # stop, keep volumes
-docker compose down -v          # stop and wipe DB
+docker compose up                   # build + start full stack (foreground)
+docker compose up -d                # detached
+docker compose up -d postgres redis # infra only (for native pnpm dev)
+docker compose build                # build images without starting
+docker compose logs -f backend      # tail backend logs
+docker compose down                 # stop, keep volumes
+docker compose down -v              # stop and wipe DB
 ```
-
-## Migrations on container start
-
-The backend image's entrypoint runs `pnpm run migration:run` before `node dist/main.js`. Configured in M09 via `apps/backend/docker-entrypoint.sh`.
 
 ## Volumes
 

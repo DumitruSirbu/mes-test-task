@@ -4,6 +4,7 @@
     "roots": ["<rootDir>/test", "<rootDir>/src", "<rootDir>/../../packages/shared/src"],
     "testEnvironment": "node",
     "testRegex": "test/.*\\.e2e-spec\\.ts$",
+    "maxWorkers": 1,
     "transformIgnorePatterns": [],
     "transform": {
         "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "<rootDir>/tsconfig.spec.json" }]

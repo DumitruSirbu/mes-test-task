@@ -34,9 +34,9 @@ See the agent definitions in `.claude/agents/` (also accessible via `.agents/age
 
 ## Current milestone
 
-→ `milestones/M04-purchase-and-invitation.md`
+→ `milestones/M06-lms.md`
 
-(M01 — Foundation: done. M02 — Architecture & ADRs: done. M03 — Backend Auth, RBAC & Logging: done.)
+(M01 — Foundation: done. M02 — Architecture & ADRs: done. M03 — Backend Auth, RBAC & Logging: done. M04 — Purchase & Invitation: done. M05 — Student Onboarding & Activation: done.)
 
 (The scribe keeps this pointer current.)
 

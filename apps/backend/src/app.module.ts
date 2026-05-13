@@ -1,5 +1,5 @@
 import { Module, ValidationPipe } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
@@ -11,9 +11,18 @@ import { ClsRequestModule } from './common/cls/ClsRequestModule';
 import { buildPostgresOptionsFromConfig } from './common/config/buildPostgresOptions';
 import { LoggerModule } from './common/logger/LoggerModule';
 import { HttpExceptionFilter } from './common/filter/HttpExceptionFilter';
+import { IdempotencyInterceptor } from './common/idempotency/interceptor/IdempotencyInterceptor';
+import { IdempotencyModule } from './common/idempotency/IdempotencyModule';
+import { IdempotencyKeyEntity } from './common/idempotency/entity/IdempotencyKeyEntity';
 import { HealthModule } from './health/HealthModule';
 import { UsersModule } from './users/UsersModule';
 import { UserEntity } from './users/entity/UserEntity';
+import { CoursesModule } from './courses/CoursesModule';
+import { CourseEntity } from './courses/entity/CourseEntity';
+import { InvitationsModule } from './invitations/InvitationsModule';
+import { InvitationEntity } from './invitations/entity/InvitationEntity';
+import { PurchasesModule } from './purchases/PurchasesModule';
+import { PurchaseEntity } from './purchases/entity/PurchaseEntity';
 
 /**
  * Root module. Order matters:
@@ -22,8 +31,10 @@ import { UserEntity } from './users/entity/UserEntity';
  *   2. `LoggerModule` consumes the CLS service.
  *   3. `TypeOrmModule.forRootAsync` delegates to `buildPostgresOptionsFromConfig` — kept
  *      in sync with `data-source.ts` via the shared helper in `common/config/`.
- *   4. Global guards/pipe/filter are registered LAST so the rest of the wiring is
- *      already in place when they run.
+ *   4. Feature modules are wired before the global guards / pipe / filter / interceptor
+ *      so DI is resolved by the time they run.
+ *   5. The global `IdempotencyInterceptor` short-circuits replays on `@Idempotent()`
+ *      handlers; routes without the decorator pass through with zero overhead.
  */
 @Module({
     imports: [
@@ -34,12 +45,16 @@ import { UserEntity } from './users/entity/UserEntity';
             inject: [ConfigService],
             useFactory: (config: ConfigService) => ({
                 ...buildPostgresOptionsFromConfig(config),
-                entities: [UserEntity],
+                entities: [UserEntity, CourseEntity, PurchaseEntity, InvitationEntity, IdempotencyKeyEntity],
             }),
         }),
         UsersModule,
         AuthModule,
         HealthModule,
+        CoursesModule,
+        InvitationsModule,
+        IdempotencyModule,
+        PurchasesModule,
     ],
     controllers: [AppController],
     providers: [
@@ -56,6 +71,7 @@ import { UserEntity } from './users/entity/UserEntity';
                     transformOptions: { enableImplicitConversion: false },
                 }),
         },
+        { provide: APP_INTERCEPTOR, useClass: IdempotencyInterceptor },
         { provide: APP_FILTER, useClass: HttpExceptionFilter },
     ],
 })

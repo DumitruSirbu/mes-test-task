@@ -1,6 +1,10 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { UserEntity } from './users/entity/UserEntity';
+import { CourseEntity } from './courses/entity/CourseEntity';
+import { PurchaseEntity } from './purchases/entity/PurchaseEntity';
+import { InvitationEntity } from './invitations/entity/InvitationEntity';
+import { IdempotencyKeyEntity } from './common/idempotency/entity/IdempotencyKeyEntity';
 import { ConfigurationError } from './common/error/ConfigurationError';
 
 /**
@@ -44,7 +48,7 @@ export const buildTypeOrmOptions = () => {
         username: required('POSTGRES_USER', 'mes'),
         password: required('POSTGRES_PASSWORD', 'mes_dev_password'),
         database: required('POSTGRES_DB', 'mes'),
-        entities: [UserEntity],
+        entities: [UserEntity, CourseEntity, PurchaseEntity, InvitationEntity, IdempotencyKeyEntity],
         migrations: [__dirname + '/migration/*.{ts,js}'],
         migrationsTableName: 'typeorm_migrations',
         migrationsTransactionMode: 'each' as const,

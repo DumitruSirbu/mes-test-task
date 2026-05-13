@@ -34,6 +34,18 @@ M04 (purchases produce invitations).
 - Unit: processor retry behavior (throw → BullMQ retries; assert via mock).
 - Integration: full purchase → assert job appears in queue → process → assert log line + `email_sent_at` set.
 
+## Agent dispatch plan
+
+| Wave | Agents (dispatched in one message) | Runs after |
+|------|-------------------------------------|------------|
+| 1 | `mes-scribe` — log start time in work-log | — |
+| 2 | `mes-backend-nestjs` — `NotificationsModule`, `InvitationEmailProcessor`, migration, enqueue in `PurchasesService` | Wave 1 |
+| 3 | `mes-qa-engineer` — processor idempotency, retry behavior, integration: purchase → queue → process | Wave 2 |
+| 4 | `mes-review-security` **∥** `mes-review-logic` **∥** `mes-review-clean-code` | Wave 3 |
+| 5 | `mes-scribe` — `docs/features/async-jobs.md`, close work-log row | Wave 4 |
+
+> No shared package or frontend changes in this milestone — backend is the only implementation concern, so Wave 2 has no parallel opportunity.
+
 ## Definition of Done
 
 - After M04 purchase, the log contains "[invitation.email.send] would send to student@example.com ..." within seconds.

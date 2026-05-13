@@ -37,7 +37,18 @@ M05 (students exist + enrolments exist).
 
 ## Agent dispatch plan
 
-Standard: shared → backend → frontend → qa → reviewers → scribe.
+| Wave | Agents (dispatched in one message) | Runs after |
+|------|-------------------------------------|------------|
+| 1 | `mes-scribe` — log start time in work-log | — |
+| 2 | `mes-shared-maintainer` — `ILessonResponse`, `ICourseWithLessonsResponse` | Wave 1 |
+| 3 | `mes-backend-nestjs` **∥** `mes-frontend-react` | Wave 2 |
+| 4 | `mes-qa-engineer` — enrolment gate, cross-tenant isolation, lesson access | Wave 3 |
+| 5 | `mes-review-security` **∥** `mes-review-logic` **∥** `mes-review-clean-code` | Wave 4 |
+| 6 | `mes-scribe` — `docs/features/lms-access.md`, close work-log row | Wave 5 |
+
+**Wave 3 detail (parallel):**
+- `mes-backend-nestjs`: `LessonEntity`, `LessonsRepository`, `LessonsService`, migration, `GET /me/courses`, `GET /courses/:id/lessons`, `GET /lessons/:id` with enrolment enforcement, seed 3–5 lessons per course.
+- `mes-frontend-react`: `/lms` dashboard, `/lms/courses/:id` lesson list, `/lms/lessons/:id` detail — all `STUDENT`-only guards.
 
 ## Definition of Done
 
