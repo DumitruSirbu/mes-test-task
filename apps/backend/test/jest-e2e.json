@@ -1,9 +1,16 @@
 {
-  "moduleFileExtensions": ["js", "json", "ts"],
-  "rootDir": ".",
-  "testEnvironment": "node",
-  "testRegex": ".e2e-spec.ts$",
-  "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
-  }
+    "moduleFileExtensions": ["js", "json", "ts"],
+    "rootDir": "..",
+    "roots": ["<rootDir>/test", "<rootDir>/src", "<rootDir>/../../packages/shared/src"],
+    "testEnvironment": "node",
+    "testRegex": "test/.*\\.e2e-spec\\.ts$",
+    "transformIgnorePatterns": [],
+    "transform": {
+        "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "<rootDir>/tsconfig.spec.json" }]
+    },
+    "moduleNameMapper": {
+        "^@mes/shared$": "<rootDir>/../../packages/shared/src/index.ts",
+        "^@mes/shared/(.*)\\.js$": "<rootDir>/../../packages/shared/src/$1.ts",
+        "^(\\.{1,2}/.*)\\.js$": "$1"
+    }
 }

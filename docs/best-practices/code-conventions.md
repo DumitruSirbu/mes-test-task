@@ -181,6 +181,83 @@ export class MyProcessor extends WorkerHost {
 }
 ```
 
+## Control flow & spacing
+
+- Every loop and conditional body MUST use braces, even when the body is a single statement. Forbidden: `if (x) doThing();`, `for (...) doThing();`. Required: `if (x) { doThing(); }`. Applies to `if`, `else`, `else if`, `for`, `for...of`, `for...in`, `while`, `do...while`.
+- A blank line MUST appear BEFORE and AFTER every `if`, `for`, `while`, and `switch` block. Exception: when the block is the first or last statement of its enclosing block, only the adjacent inner side requires a blank line.
+- A blank line MUST appear BEFORE every `return` statement. Exception: when the `return` is the only statement in its block.
+- **Reviewers MUST flag any violation as must-fix.**
+
+Example:
+
+**Before (forbidden):**
+```typescript
+async findUserWithOrders(userId: string): Promise<IUser | null> {
+    if (!userId) return null;
+    const user = await this.repository.findOne(userId);
+    if (!user) return null;
+    user.orders = this.orders.filter(o => o.userId === userId);
+    for (const order of user.orders) order.total = order.items.reduce((sum, i) => sum + i.price, 0);
+    return user;
+}
+```
+
+**After (required):**
+```typescript
+async findUserWithOrders(userId: string): Promise<IUser | null> {
+
+    if (!userId) {
+        return null;
+    }
+
+    const user = await this.repository.findOne(userId);
+
+    if (!user) {
+        return null;
+    }
+
+    user.orders = this.orders.filter(o => o.userId === userId);
+
+    for (const order of user.orders) {
+        order.total = order.items.reduce((sum, i) => sum + i.price, 0);
+    }
+
+    return user;
+}
+```
+
+## Type assertions
+
+- Prefer `satisfies` over `as`. Use `satisfies` whenever you want to check a value conforms to a type without widening it.
+- Use `as` ONLY when the runtime type is genuinely narrower than the inferred type — e.g., `JSON.parse` results, narrowing from `unknown`, branded-type construction at a controlled boundary.
+- Forbidden: `as unknown as X` double-casts. Refactor the underlying types instead.
+
+Example:
+
+**Before (using `as`):**
+```typescript
+const config = {
+    host: 'localhost',
+    port: 5432,
+    timeout: 3000,
+} as IConfig;  // Widens the type; later additions won't be caught as config errors.
+```
+
+**After (using `satisfies`):**
+```typescript
+const config = {
+    host: 'localhost',
+    port: 5432,
+    timeout: 3000,
+} satisfies IConfig;  // Checks shape at definition; retains literal type { host, port, timeout }.
+```
+
+Use `as` only for narrowing unknown or third-party types:
+```typescript
+const parsed = JSON.parse(jsonString) as Record<string, unknown>;
+const element = document.getElementById('btn') as HTMLButtonElement;
+```
+
 ## Barrel Exports
 
 Each subfolder (`entity/`, `interface/`, `const/`, `utils/`, `controller/`, `service/`, `enum/`) has an `index.ts` that re-exports all public members. Keep it updated when adding new files. **Exceptions:** `repository/` and `dto/` have no barrel — import each directly.
@@ -191,6 +268,38 @@ Each subfolder (`entity/`, `interface/`, `const/`, `utils/`, `controller/`, `ser
 - Enum file names must use `Enum` suffix (e.g. `ScorerTypeEnum.ts`)
 - Enum type names must use `Enum` suffix (e.g. `ScorerTypeEnum`)
 - Cross-workspace enums (consumed by frontend too) live in `packages/shared/src/enums/` with the same naming
+
+## Constants Placement
+
+**AUTHORITATIVE:** Every constant (numeric literal, string literal, regex, default config value) that is not strictly local to one function MUST live in a `const/` folder of its module.
+
+- **File path pattern:** `apps/backend/src/<domain>/const/<Domain>Consts.ts` (e.g., `apps/backend/src/auth/const/AuthConsts.ts`, `apps/backend/src/common/const/CommonConsts.ts`)
+- **File naming:** `<Domain>Consts.ts` (PascalCase domain prefix, `Consts` suffix)
+- **Export names:** `UPPER_SNAKE_CASE` for all constants
+- **Barrel:** Each module with a `const/` folder exports from `const/index.ts`
+- **Forbidden:** top-of-file `const FOO = ...` constants exported alongside services/controllers/entities
+- **Forbidden:** inline magic numbers, magic strings, or regex literals in code
+- **Reviewer enforcement:** `mes-review-clean-code` MUST flag any violation as must-fix
+
+Example structure:
+```
+apps/backend/src/auth/
+├── const/
+│   ├── AuthConsts.ts           # AUTH_QUEUE_NAME, JWT_EXPIRY_SECONDS, etc.
+│   └── index.ts                # exports from AuthConsts
+├── service/
+├── controller/
+└── ...
+```
+
+Example constants file:
+```typescript
+// AuthConsts.ts
+export const AUTH_QUEUE_NAME = 'auth-queue';
+export const JWT_EXPIRY_SECONDS = 3600;
+export const PASSWORD_MIN_LENGTH = 8;
+export const THROTTLE_LIMIT = 5;
+```
 
 ## Error Handling
 
@@ -217,6 +326,46 @@ Each subfolder (`entity/`, `interface/`, `const/`, `utils/`, `controller/`, `ser
 - Integration tests run against a test database
 - Use factory functions to seed test data
 - Test file location mirrors source under `__tests__/` (e.g., `service/PurchaseService.ts` → `service/__tests__/PurchaseService.spec.ts`)
+
+## Milestone Closure & Review Loop
+
+**AUTHORITATIVE workflow for closing every milestone: two mandatory review rounds.**
+
+**Round 1:**
+1. After implementation + QA complete, the `mes-orchestrator` dispatches all three reviewers in parallel:
+   - `mes-review-security` → checks auth, data leaks, secrets, access control
+   - `mes-review-logic` → checks domain invariants, state machines, error cases
+   - `mes-review-clean-code` → checks naming, function length, constants placement, control flow, DRY, test coverage
+
+2. For every `blocker` or `high` finding: the orchestrator dispatches the relevant specialist (backend, shared, frontend, or devops) to fix it.
+3. For every `medium` finding: fix only if cheap to do; otherwise defer to next round or next milestone.
+4. Document each fix in `docs/work-log.md` with a new row (same milestone ID, `Round 1 Fix N` suffix).
+
+**Round 2:**
+5. Dispatch all three reviewers in parallel again.
+6. For every remaining `blocker` or `high` finding: must fix before round 2 closes.
+7. For every remaining `medium` finding: document as a carry-over to the next milestone (bullet in the milestone's "Review rounds" section).
+8. Document round 2 outcome in `docs/work-log.md` with a final row (milestone ID, `Round 2` suffix).
+
+**Milestone completion:**
+9. After round 2, milestone is marked **done** — no blockers/highs remain.
+10. Further iterations beyond round 2 are **optional**, not mandatory.
+11. Scribe updates `milestones/M<N>-*.md` with a "Review rounds" section (round 1 fixes, round 2 fixes, medium carry-overs).
+12. Scribe updates the milestone pointer in `CLAUDE.md`.
+
+**Why:** Two rounds catch most mistakes without unbounded iteration; mediums are tracked explicitly to prevent silent debt.
+Blockers/highs are always must-fix; mediums are accepted into the next milestone if the fix is costly.
+
+## Build & lint gate
+
+**AUTHORITATIVE:** Every implementer (backend, frontend, shared, devops) MUST enforce zero-defect build + lint before handing off to review.
+
+- **Required pre-handoff checks:** `pnpm --filter <workspace> build` AND `pnpm --filter <workspace> lint` (and `tsc --noEmit` where it differs from build) must both pass.
+- **Acceptance criteria:** Zero TypeScript errors and zero lint errors. Warnings must be fixed unless explicitly documented as accepted with a one-line justification comment in the code.
+- **No suppressions as a fix:** `eslint-disable`, `@ts-ignore`, or `as any` are forbidden as workarounds. Suppressions are allowed ONLY at genuine boundaries (third-party untyped imports, `JSON.parse` results) and MUST include a one-line comment explaining why.
+- **Orchestrator gate:** Before triggering the milestone-close reviewer loop, `mes-orchestrator` MUST verify build + lint are clean. If a reviewer later flags a build/lint regression, that counts as a **high** finding.
+
+**Why:** Build/lint failures are the first line of defense against silent bugs and type unsafety. Zero tolerance ensures reviews can focus on logic and design, not chasing compile errors.
 
 ## See also
 

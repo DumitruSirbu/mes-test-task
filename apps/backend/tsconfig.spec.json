@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "target": "ES2023",
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "strict": true,
+        "strictNullChecks": true,
+        "skipLibCheck": true,
+        "resolveJsonModule": true,
+        "allowSyntheticDefaultImports": true,
+        "baseUrl": "./"
+    },
+    "include": ["src/**/*.ts", "test/**/*.ts", "../../packages/shared/src/**/*.ts"]
+}

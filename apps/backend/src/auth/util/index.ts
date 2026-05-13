@@ -1,0 +1,1 @@
+export { assertJwtConfig } from './assertJwtConfig';

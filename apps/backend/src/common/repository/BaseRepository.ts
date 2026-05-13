@@ -1,4 +1,4 @@
-import { DeepPartial, FindManyOptions, ObjectLiteral, Repository } from 'typeorm';
+import { DeepPartial, FindManyOptions, FindOptionsWhere, ObjectLiteral, Repository } from 'typeorm';
 
 /**
  * Abstract base for all domain repositories.
@@ -24,11 +24,20 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
     }
 
     /**
+     * Find a single row matching the given `where` clause, or `null` when absent.
+     * Concrete repositories call this instead of reaching into `this.repository` directly.
+     */
+    protected async findOne(where: FindOptionsWhere<T>): Promise<T | null> {
+        return this.repository.findOne({ where });
+    }
+
+    /**
      * Persist a single new row. Returns the saved entity (with generated id /
      * timestamps populated).
      */
     protected async create(entity: DeepPartial<T>): Promise<T> {
         const instance = this.repository.create(entity);
+
         return this.repository.save(instance);
     }
 
@@ -43,9 +52,12 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
         if (entities.length === 0) {
             return;
         }
+
         await this.repository
             .createQueryBuilder()
             .insert()
+            // `as never` satisfies TypeORM's overloaded `.values()` which doesn't accept
+            // `DeepPartial<T>[]` directly at the generic level — a known TypeORM limitation.
             .values(entities as never)
             .orIgnore()
             .execute();
