@@ -17,3 +17,4 @@ export * from './DuplicatePurchaseForStudentError';
 export * from './PurchaseNotFoundError';
 export * from './NotEnrolledError';
 export * from './LessonNotFoundError';
+export * from './RefreshTokenError';

@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/authStore';
-import { authStore } from '../auth/authStore';
+import { useAuth, authStore } from '../auth/authStore';
+import { postLogoutWithRetry } from '../auth/logoutClient';
 
 const NAV_LINKS = [
     { to: '/parents', label: 'Parents' },
@@ -15,8 +15,14 @@ export const AdminLayout = (): ReactElement => {
     const navigate = useNavigate();
 
     const handleLogout = (): void => {
-        authStore.clear();
-        navigate('/login');
+        // Set flag before the network call so the in-flight refresh guard sees it.
+        authStore.setIsLoggingOut(true);
+
+        void postLogoutWithRetry().finally(() => {
+            authStore.clear();
+            authStore.setIsLoggingOut(false);
+            navigate('/login');
+        });
     };
 
     return (

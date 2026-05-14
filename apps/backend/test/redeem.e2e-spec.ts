@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { getQueueToken } from '@nestjs/bullmq';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { Test } from '@nestjs/testing';
@@ -44,6 +45,8 @@ import { IdempotencyService } from '../src/common/idempotency/service/Idempotenc
 import { IdempotencyKeysRepository } from '../src/common/idempotency/repository/IdempotencyKeysRepository';
 import { IdempotencyKeyEntity } from '../src/common/idempotency/entity/IdempotencyKeyEntity';
 import { IdempotencyInterceptor } from '../src/common/idempotency/interceptor/IdempotencyInterceptor';
+import { INVITATION_EMAIL_QUEUE } from '../src/notifications/const/NotificationsConsts';
+import { RefreshTokensRepository } from '../src/auth/repository/RefreshTokensRepository';
 
 // ---------------------------------------------------------------------------
 // In-memory stores
@@ -442,6 +445,10 @@ function buildStubDataSource(purchasesRepo: InMemoryPurchasesRepository): unknow
     };
 }
 
+class StubRefreshTokensRepository {
+    public async insertNew(): Promise<void> {}
+}
+
 // ---------------------------------------------------------------------------
 // Factory: builds a fresh set of in-memory stores + NestJS application.
 // Returned stores are exposed so individual tests can inspect/seed them.
@@ -552,6 +559,8 @@ async function buildTestContext(): Promise<ITestContext> {
             { provide: PurchasesRepository, useValue: purchasesRepo },
             PurchasesService,
             { provide: DataSource, useValue: dataSource },
+            { provide: RefreshTokensRepository, useClass: StubRefreshTokensRepository },
+            { provide: getQueueToken(INVITATION_EMAIL_QUEUE), useValue: { add: jest.fn().mockResolvedValue({ id: 'job-1' }) } },
             IdempotencyInterceptor,
             { provide: APP_GUARD, useClass: JwtAuthGuard },
             { provide: APP_GUARD, useClass: RolesGuard },

@@ -44,3 +44,26 @@ export const REQUEST_ID_MAX_LENGTH = 128;
  * The quantifier is bounded by REQUEST_ID_MAX_LENGTH (both must stay in sync).
  */
 export const REQUEST_ID_REGEX = /^[A-Za-z0-9._-]{1,128}$/;
+
+/**
+ * Environment variable that holds the comma-separated CORS allow-list.
+ * Read by both `main.ts` (CORS middleware) and `OriginAllowedGuard`.
+ * Using the same constant avoids typo-induced divergence between the two readers.
+ */
+export const REFRESH_CSRF_ALLOWED_ORIGINS_ENV = 'CORS_ALLOWED_ORIGINS';
+
+/**
+ * Dev-mode fallback allow-list used when `CORS_ALLOWED_ORIGINS` is unset.
+ * Never used in production (non-empty env var is required there).
+ */
+export const REFRESH_CSRF_ALLOWED_ORIGINS_FALLBACK: readonly string[] = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+];
+
+/**
+ * `NODE_ENV` value for production deployments.
+ * Referenced by cookie helpers to gate the `Secure` attribute — never inline the
+ * string `'production'` in business logic.
+ */
+export const NODE_ENV_PRODUCTION = 'production';

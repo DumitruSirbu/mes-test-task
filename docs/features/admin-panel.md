@@ -25,5 +25,5 @@ Served from `apps/admin/` on its own port. Same auth backend as `apps/web`. Logi
 - Mutating data from the admin panel.
 - Impersonation.
 - Full audit log.
-- XSS/localStorage hardening (cross-app; M09 scope).
-- Rate limiting on other endpoints (cross-app; M09 scope).
+- XSS/localStorage hardening (cross-app; M10 scope).
+- Rate limiting on other endpoints (cross-app; M10 scope).

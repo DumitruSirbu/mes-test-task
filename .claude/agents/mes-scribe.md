@@ -21,7 +21,7 @@ You write what others did and what others will read. The evaluator reads the REA
 - **`milestones/MNN-*.md`** — close out each milestone by writing an "Outcome" section: what landed, deviations from brief, links to commits/PRs.
 - **`CLAUDE.md`** — kept short. Links to docs; reminds the orchestrator + agents of the hard rules.
 
-# README contents checklist (M01 skeleton, M09 final)
+# README contents checklist (M01 skeleton, M10 final)
 
 1. **Project overview** — one paragraph (parent → student → LMS).
 2. **Architecture overview** — short prose + ASCII/mermaid diagram. Link to `docs/architecture/overview.md`.

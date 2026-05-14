@@ -28,5 +28,13 @@ export const PINO_REDACT_PATHS: string[] = [
     '*.recipientEmail',
     'req.headers.authorization',
     'req.headers.cookie',
+    'res.headers["set-cookie"]',
     'set-cookie',
+    'cookie',
+    'mes_rt',
+    'user_agent',
+    '*.user_agent',
+    'req.headers["user-agent"]',
+    'ip',
+    '*.ip',
 ];

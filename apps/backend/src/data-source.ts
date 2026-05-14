@@ -7,6 +7,7 @@ import { InvitationEntity } from './invitations/entity/InvitationEntity';
 import { IdempotencyKeyEntity } from './common/idempotency/entity/IdempotencyKeyEntity';
 import { EnrolmentEntity } from './enrolments/entity/EnrolmentEntity';
 import { LessonEntity } from './lessons/entity/LessonEntity';
+import { RefreshTokenEntity } from './auth/entity/RefreshTokenEntity';
 import { ConfigurationError } from './common/error/ConfigurationError';
 
 /**
@@ -50,7 +51,7 @@ export const buildTypeOrmOptions = () => {
         username: required('POSTGRES_USER', 'mes'),
         password: required('POSTGRES_PASSWORD', 'mes_dev_password'),
         database: required('POSTGRES_DB', 'mes'),
-        entities: [UserEntity, CourseEntity, PurchaseEntity, InvitationEntity, IdempotencyKeyEntity, EnrolmentEntity, LessonEntity],
+        entities: [UserEntity, CourseEntity, PurchaseEntity, InvitationEntity, IdempotencyKeyEntity, EnrolmentEntity, LessonEntity, RefreshTokenEntity],
         migrations: [__dirname + '/migration/*.{ts,js}'],
         migrationsTableName: 'typeorm_migrations',
         migrationsTransactionMode: 'each' as const,

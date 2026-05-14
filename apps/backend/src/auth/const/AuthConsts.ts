@@ -10,16 +10,16 @@ export const ARGON2_TIME_COST = 3;
 export const ARGON2_PARALLELISM = 1;
 
 /**
- * Default access-token TTL when `JWT_EXPIRES_IN` is unset. 15 minutes is the policy
- * ceiling per ADR 0003 — no longer because there is no refresh token in v1.
+ * Default access-token TTL when `JWT_EXPIRES_IN` is unset.
+ * Lowered from 15 → 10 minutes per ADR 0007 (same blast-radius posture, half the refresh chatter).
  */
-export const DEFAULT_JWT_EXPIRES_IN = '15m';
+export const DEFAULT_JWT_EXPIRES_IN = '10m';
 
 /**
- * Fallback TTL in seconds, derived from DEFAULT_JWT_EXPIRES_IN ('15m' = 900 s).
- * Used when `JWT_EXPIRES_IN` cannot be parsed so the magic number 900 never appears inline.
+ * Fallback TTL in seconds, derived from DEFAULT_JWT_EXPIRES_IN ('10m' = 600 s).
+ * Used when `JWT_EXPIRES_IN` cannot be parsed so the magic number 600 never appears inline.
  */
-export const DEFAULT_JWT_EXPIRES_IN_SECONDS = 900;
+export const DEFAULT_JWT_EXPIRES_IN_SECONDS = 600;
 
 /**
  * Valid format for JWT_EXPIRES_IN: a positive integer followed by s, m, h, or d.
@@ -74,3 +74,74 @@ export const THROTTLE_LOGIN_LIMIT = 5;
  * Must match the `name` field in `ThrottlerModule.forRoot` configuration.
  */
 export const THROTTLER_DEFAULT_NAME = 'default';
+
+/**
+ * Standard HTTP Bearer token prefix used when parsing the `Authorization` header.
+ * Single source of truth — never inline `'Bearer '` in middleware or guards.
+ */
+export const BEARER_PREFIX = 'Bearer ';
+
+/**
+ * Refresh token TTL in days (ADR 0007 §1). Sliding — every successful rotation
+ * issues a new token with a fresh 7-day `expires_at`.
+ */
+export const REFRESH_TOKEN_TTL_DAYS = 7;
+
+/**
+ * Entropy size for the raw opaque refresh token in bytes.
+ * 32 bytes → 256-bit random value, `base64url`-encoded.
+ */
+export const REFRESH_TOKEN_BYTES = 32;
+
+/**
+ * Grace window in seconds for the legitimate-retry path of reuse-detection (ADR 0007 §7).
+ * A revoked token arriving within this window from the same `user_agent` is treated as a
+ * network retry, not theft. Tightening reduces the replay surface; loosening reduces
+ * false-positive logouts for mobile clients.
+ */
+export const REFRESH_REUSE_GRACE_SECONDS = 10;
+
+/**
+ * Retention: expired rows are kept for this many additional days after `expires_at`
+ * passes before the cleanup job deletes them (forensic grace window — ADR 0007 §10).
+ */
+export const REFRESH_TOKEN_GRACE_DAYS = 7;
+
+/**
+ * Retention: revoked rows are kept for this many days after `revoked_at`
+ * (forensic window for theft investigations — ADR 0007 §10).
+ */
+export const REFRESH_TOKEN_FORENSIC_DAYS = 30;
+
+/**
+ * Hard retention ceiling: rows still present beyond this many days trigger a
+ * `REFRESH_TOKEN_RETENTION_BREACH` error log (cleanup job silence detector — ADR 0007 §10).
+ */
+export const REFRESH_TOKEN_RETENTION_BREACH_DAYS = 60;
+
+/**
+ * Per-cookie (falling back to per-IP) rate-limit applied to `/auth/refresh`.
+ * 30 requests per 60-second window accommodates legitimate rapid-refresh scenarios
+ * (page reload storms, multi-tab) while blocking brute-force replays.
+ */
+export const THROTTLE_REFRESH_LIMIT = 30;
+
+/**
+ * Time window in ms for the `/auth/refresh` throttle bucket.
+ * Mirrors `THROTTLE_WINDOW_MS` so all throttle windows are consistent.
+ */
+export const THROTTLE_REFRESH_TTL_MS = 60_000;
+
+/**
+ * Named throttler key for the `/auth/refresh` endpoint.
+ * Must be registered in `ThrottlerModule.forRoot` alongside the `default` name
+ * if custom per-endpoint limits are to be applied via `@Throttle`.
+ */
+export const THROTTLER_REFRESH_NAME = 'refresh';
+
+/**
+ * Milliseconds in a single calendar day.
+ * Used by `computeExpiresAt` to avoid repeating the inline expression
+ * `24 * 60 * 60 * 1_000` throughout the service.
+ */
+export const MS_PER_DAY = 24 * 60 * 60 * 1_000;

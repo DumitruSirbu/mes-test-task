@@ -1,8 +1,14 @@
 # ADR 0004 — BullMQ for Async Work
 
-- **Status:** Accepted (2026-05-13)
+- **Status:** Accepted (2026-05-13) · **Amended by [ADR 0007](./0007-refresh-token-rotation.md)** (2026-05-14)
 - **Deciders:** mes-architect, mes-orchestrator
 - **Tags:** async, queues, retries
+
+> **Amendment (2026-05-14) — `maintenance` queue category.** [ADR 0007 §10](./0007-refresh-token-rotation.md) introduces a new queue category to the inventory:
+>
+> > **`maintenance`** — periodic-sweep queue for housekeeping jobs that don't belong to a domain workflow. Naming convention: `<domain>-cleanup` (e.g. `refresh-token-cleanup`). Jobs are BullMQ **repeatable** (cron-style); schedules are declared on the processor. Failure alerting via `logger.error` with a stable `code:` field — there is no metrics pipeline today (see ADR 0005 amendment). First inhabitant: `refresh-token-cleanup` (M09). Future inhabitants: idempotency-key sweep (per ADR 0006's "Next steps"), expired-invitation cleanup, etc. — **all live here, not in domain queues**, so the next milestone that needs a periodic sweep inherits the pattern instead of reinventing it.
+>
+> All retry / dedup / shutdown rules from the original body apply to maintenance jobs. The lifecycle expectation differs only in that maintenance jobs are produced by the scheduler (`repeat: { pattern: '0 3 * * *' }`), not by an HTTP handler.
 
 ## Context
 

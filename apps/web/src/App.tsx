@@ -1,6 +1,8 @@
 import type { ReactElement } from 'react';
 import { UserRoleEnum } from '@mes/shared';
 import { authStore, useAuth } from './auth/authStore';
+import { useAuthBootstrap } from './auth/useAuthBootstrap';
+import { postLogoutWithRetry } from './auth/logoutClient';
 import { matchRoute, navigate, useRoutePath } from './router/router';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
@@ -74,12 +76,27 @@ const renderRoute = (path: string): ReactElement => {
 };
 
 const App = (): ReactElement => {
+    const bootState = useAuthBootstrap();
     const path = useRoutePath();
     const auth = useAuth();
 
-    const onLogout = (): void => {
-        authStore.clear();
-        navigate('/courses');
+    if (bootState === 'pending') {
+        return (
+            <div className="app">
+                <p aria-label="Loading">Loading…</p>
+            </div>
+        );
+    }
+
+    const handleLogout = (): void => {
+        // Set flag before the network call so the in-flight refresh guard sees it.
+        authStore.setIsLoggingOut(true);
+
+        void postLogoutWithRetry().finally(() => {
+            authStore.clear();
+            authStore.setIsLoggingOut(false);
+            navigate('/courses');
+        });
     };
 
     return (
@@ -92,7 +109,7 @@ const App = (): ReactElement => {
                             {auth.role === UserRoleEnum.STUDENT ? <a href="#/lms">My Courses</a> : null}
                             <span>{auth.email}</span>
                             {auth.role === UserRoleEnum.PARENT ? <span className="role-badge">Parent</span> : null}
-                            <button type="button" onClick={onLogout}>Log out</button>
+                            <button type="button" onClick={handleLogout}>Log out</button>
                         </>
                     ) : (
                         <>

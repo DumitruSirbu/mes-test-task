@@ -8,7 +8,7 @@ A small full-stack web app mocking the MES core user journey: **Parent purchases
 
 ## 1. Project overview
 
-_(filled in M02 / M09)_
+_(filled in M02 / M10)_
 
 A parent buys access to a course for their child, receives an invitation link, the student onboards through that link, sets a password, and lands in a simple LMS where they can browse lessons. An admin panel exposes read-only views of parents, students, purchases, and courses.
 
@@ -33,20 +33,20 @@ See `docs/architecture/overview.md`.
 
 ## 4. Installation & run
 
-_(filled in M09 with the final exact commands)_
+_(filled in M10 with the final exact commands)_
 
 ```bash
 git clone <repo>
 cd mes-test-task
 cp .env.example .env     # required before docker compose up — never committed
-docker compose up        # postgres + redis (+ apps in M09)
+docker compose up        # postgres + redis (+ apps in M10)
 ```
 
 For local dev (without containerising the apps): `pnpm install`, then `pnpm dev:backend` (port 3010), `pnpm dev:web`, `pnpm dev:admin` in three terminals.
 
 ## 5. Environment variables
 
-_(filled in M09 — table)_
+_(filled in M10 — table)_
 
 See `.env.example`.
 
@@ -60,7 +60,7 @@ _(filled in M03 once seeding lands)_
 
 ## 7. End-to-end walkthrough
 
-_(filled in M09)_
+_(filled in M10)_
 
 1. Sign up as a parent at http://localhost:5173/signup
 2. Buy "Maths Year 7" → receive invitation URL
@@ -117,7 +117,7 @@ pnpm --filter admin test
 │   ├── development/         # setup, docker, env
 │   ├── ai-usage/            # transcripts + diff artefacts
 │   └── work-log.md          # time tracking per task
-├── milestones/              # M01..M09 plan-of-record briefs
+├── milestones/              # M01..M10 plan-of-record briefs
 ├── CLAUDE.md                # how to work in this repo (orchestrator entry-point rule)
 ├── docker-compose.yml
 ├── .env.example
@@ -128,7 +128,7 @@ pnpm --filter admin test
 
 ## 12. Next steps / out of scope
 
-_(finalised in M09 — see also ADRs)_
+_(finalised in M10 — see also ADRs)_
 
 - Real payment integration (Stripe) — purchase endpoint is already idempotent so swap-in is straightforward.
 - Real email delivery (SES/Sendgrid) — drop in a transport behind the `InvitationEmailProcessor`.

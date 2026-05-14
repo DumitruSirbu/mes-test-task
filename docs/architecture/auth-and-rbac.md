@@ -187,6 +187,134 @@ Backend is always the source of truth — frontend role checks exist to avoid sh
 - `apps/admin` boots into a login screen and gates everything behind `<RequireRole role="ADMIN" />`. A non-ADMIN authenticated user is shown the canonical "ADMIN only" message and a logout button — no data fetched.
 - `apiClient` reads `IApiErrorResponse.code === 'AUTH_TOKEN_EXPIRED'` to drop the token and route to `/login` exactly once (no retry loop — see ADR 0006).
 
+## Refresh token flows (ADR 0007)
+
+> Added in M09. Full design lives in [adr/0007-refresh-token-rotation.md](./adr/0007-refresh-token-rotation.md). This section is the operational view — the sequence diagrams an implementer or reviewer needs to read the wire.
+
+The "Request authentication flow" block above describes the **access-token** path; it remains accurate. What changes with ADR 0007:
+
+- `POST /auth/login` and `POST /auth/signup` additionally issue a refresh cookie (`Set-Cookie: mes_rt=...; Path=/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`).
+- New endpoints `POST /auth/refresh` and `POST /auth/logout` — both `@Public()` (JWT bearer not required; the cookie is the credential), both behind `OriginAllowedGuard` + `X-Requested-With` header check (CSRF defence, ADR 0007 §8).
+- Access token TTL is now **10 minutes** (lowered from 15; see ADR 0003 amendment).
+- Refresh token is opaque (256-bit random, base64url); hashed (`SHA-256`) on the server side and stored in `refresh_tokens`. The raw value lives only in the cookie.
+
+### Login (issues access JWT + refresh cookie)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client (SPA)
+    participant API as AuthController
+    participant S as AuthService
+    participant DB as refresh_tokens
+
+    C->>API: POST /auth/login { email, password }
+    API->>S: login(email, password)
+    S->>S: argon2.verify
+    S->>S: signJwt({ sub, role }, exp=10m)
+    S->>S: rawRefresh = randomBytes(32).base64url
+    S->>S: tokenHash = sha256(rawRefresh)
+    S->>DB: INSERT (user_id, family_id=new uuid, token_hash, expires_at=now+7d, ua, ip)
+    DB-->>S: ok (committed)
+    S-->>API: { accessToken, rawRefresh }
+    API-->>C: 200 { accessToken }<br/>Set-Cookie: mes_rt=<raw>; Path=/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=604800
+```
+
+### Refresh — happy path (rotation) and grace-window legitimate retry
+
+The two paths share the same entry point. Branching happens after the `SELECT … FOR UPDATE` reads the row.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant G as OriginAllowedGuard + X-Requested-With check
+    participant API as AuthController
+    participant S as AuthService
+    participant DB as refresh_tokens
+
+    C->>G: POST /auth/refresh<br/>Cookie: mes_rt=<raw><br/>X-Requested-With: XMLHttpRequest<br/>Origin: <allow-listed>
+    G->>API: passes
+    API->>S: refresh(rawToken, { ua, ip })
+    S->>DB: BEGIN; SELECT row WHERE token_hash=sha256(raw) FOR UPDATE
+    DB-->>S: row { revoked_at, replaced_by_id, family_id, expires_at, ua_original }
+
+    alt revoked_at IS NULL AND not expired (happy path)
+        S->>DB: INSERT new row (same family_id, fresh expires_at=now+7d, fresh ua/ip)
+        S->>DB: UPDATE old SET revoked_at=now(), replaced_by_id=<new.id>
+        S->>DB: COMMIT
+        S->>S: accessToken = signJwt(...)
+        S-->>API: { accessToken, rawNew, maxAge=604800 }
+        API-->>C: 200 { accessToken }<br/>Set-Cookie: mes_rt=<new>; Max-Age=604800; ...
+    else revoked AND (now() - revoked_at) < 10s AND ua matches (grace path)
+        Note over S,DB: Legitimate retry — re-issue the successor verbatim.<br/>Successor's expires_at is NOT refreshed.
+        S->>DB: SELECT successor row WHERE id=replaced_by_id
+        DB-->>S: successor { rawHash, expires_at }
+        S->>S: re-fetch the stored raw via in-memory cache?<br/>(See ADR 0007 §6 — the grace path returns the same successor)
+        S->>DB: COMMIT (no writes)
+        S-->>API: { accessToken, rawSuccessor, maxAge = expires_at - now() }
+        API-->>C: 200 { accessToken }<br/>Set-Cookie: mes_rt=<successor>; Max-Age=<recomputed>; ...
+    end
+```
+
+> **Implementation note on the grace path.** The successor's raw token value is only known at the moment of original rotation (we store its hash, not the raw). To re-emit the successor verbatim within the 10s grace window, the rotation handler caches `{ predecessor.id → successor.raw }` in-process with a TTL equal to `REFRESH_REUSE_GRACE_SECONDS`. After the window expires the cache entry drops, and any later replay falls through to the theft path. This is an implementation detail of the auth module; documented here so reviewers don't expect to find the raw successor in the database.
+
+### Logout (revoke single token, not the whole family)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant G as OriginAllowedGuard + X-Requested-With
+    participant API as AuthController
+    participant S as AuthService
+    participant DB as refresh_tokens
+
+    C->>G: POST /auth/logout<br/>Cookie: mes_rt=<raw><br/>X-Requested-With: XMLHttpRequest
+    G->>API: passes
+    API->>S: logout(rawToken)
+    S->>DB: UPDATE refresh_tokens SET revoked_at=now()<br/>WHERE token_hash=sha256(raw) AND revoked_at IS NULL
+    DB-->>S: affected = 0 or 1 (idempotent either way)
+    S-->>API: ok
+    API-->>C: 204 No Content<br/>Set-Cookie: mes_rt=; Path=/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=0
+    Note over C,API: Cookie clear has attribute parity with the issuing cookie.<br/>Safari refuses to clear cookies with mismatched attributes (e2e asserts WebKit).
+```
+
+### Reuse-detection theft path (family revocation)
+
+Fires when a revoked token arrives *outside* the grace window, *or* inside the grace window with a mismatched `user_agent`.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as Attacker (replays stolen cookie)
+    participant V as Victim (already rotated)
+    participant API as AuthController
+    participant S as AuthService
+    participant DB as refresh_tokens
+    participant L as logger
+
+    V->>API: POST /auth/refresh (legitimate; rotates token N → N+1)
+    API->>DB: rotate (N revoked, N+1 active)
+    Note over V,DB: Some time passes — attacker captured token N earlier
+
+    A->>API: POST /auth/refresh<br/>Cookie: mes_rt=<token N>
+    API->>S: refresh(rawN, { ua_attacker, ip_attacker })
+    S->>DB: BEGIN; SELECT row FOR UPDATE
+    DB-->>S: row { revoked_at=set, replaced_by_id=N+1, ua_original }
+
+    alt now() - revoked_at >= 10s OR ua_attacker != ua_original
+        S->>DB: UPDATE refresh_tokens SET revoked_at=now()<br/>WHERE family_id=$1 AND revoked_at IS NULL
+        S->>DB: COMMIT
+        S->>L: warn { code: 'REFRESH_TOKEN_REUSED', userId, familyId, ipPrefix, uaMatch=false }
+        S-->>API: throw RefreshTokenReusedError
+        API-->>A: 401 { code: 'REFRESH_TOKEN_REUSED' }
+        Note over V,API: Victim's next /auth/refresh now also fails — token N+1<br/>was revoked by the family-revocation update.<br/>Both attacker and victim are logged out.<br/>Victim re-logs; new family starts.
+    end
+```
+
+The "victim collateral damage" is intentional: there is no way to distinguish attacker from victim from the tokens alone. We optimise for "kill the compromised session" over "keep the legitimate session online", because once the family is compromised every token in it is suspect.
+
 ## Secret rotation note
 
 For this test task, `JWT_SECRET` is static per environment. To rotate in production we'd:

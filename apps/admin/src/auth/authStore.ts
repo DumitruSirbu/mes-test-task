@@ -1,18 +1,17 @@
 import { useSyncExternalStore } from 'react';
-import { z } from 'zod';
 import { UserRoleEnum } from '@mes/shared';
-import { AUTH_SESSION_STORAGE_KEY } from '../const/AdminUiConsts';
 
 /**
  * Auth store for the admin SPA.
  *
- * Security model:
- * - Access token is kept in a module-scoped variable (memory only). It is never
- *   written to any Web Storage, so XSS cannot exfiltrate it via localStorage/sessionStorage.
- * - User metadata (id, email, role) is persisted to sessionStorage so the UI
- *   can show the logged-in user across navigations within the same tab. It is
- *   cleared automatically when the tab is closed.
- * - On a full page reload the token is gone, so RequireAdmin redirects to /login.
+ * Security model (M10):
+ * - Access token is kept in a module-scoped variable (memory only). Never written to
+ *   any Web Storage — XSS cannot exfiltrate it.
+ * - User metadata (userId, email, role) is populated exclusively from the boot-time
+ *   /auth/me call. No sessionStorage persistence — the httpOnly refresh cookie keeps
+ *   the session alive across reloads.
+ * - `isLoggingOut` guards against a race where an in-flight silent-refresh resolves
+ *   after logout completes, which would otherwise resurrect the store.
  */
 
 export interface IAuthState {
@@ -22,41 +21,14 @@ export interface IAuthState {
     email: string;
 }
 
-type StoredUser = Pick<IAuthState, 'userId' | 'role' | 'email'>;
-
-const storedUserSchema = z.object({
-    userId: z.number().int().positive(),
-    role: z.nativeEnum(UserRoleEnum),
-    email: z.string().email(),
-});
-
 type Listener = () => void;
 
 const listeners = new Set<Listener>();
 
-// Access token lives only in memory — never persisted.
 let memoryToken: string | null = null;
-
-const loadStoredUser = (): StoredUser | null => {
-    try {
-        const raw = sessionStorage.getItem(AUTH_SESSION_STORAGE_KEY);
-        if (!raw) return null;
-
-        const result = storedUserSchema.safeParse(JSON.parse(raw));
-        if (!result.success) {
-            sessionStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
-            return null;
-        }
-
-        return result.data;
-    } catch {
-        sessionStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
-        return null;
-    }
-};
-
-let storedUser: StoredUser | null = loadStoredUser();
+let storedUser: Pick<IAuthState, 'userId' | 'role' | 'email'> | null = null;
 let cachedState: IAuthState | null = null;
+let isLoggingOut = false;
 
 const rebuildState = (): void => {
     if (!memoryToken || !storedUser) {
@@ -84,9 +56,21 @@ export const authStore = {
     },
 
     setState(next: IAuthState): void {
+        isLoggingOut = false;
         memoryToken = next.accessToken;
         storedUser = { userId: next.userId, role: next.role, email: next.email };
-        sessionStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(storedUser));
+        rebuildState();
+        emit();
+    },
+
+    setToken(token: string): void {
+        memoryToken = token;
+        rebuildState();
+        emit();
+    },
+
+    setUser(user: Pick<IAuthState, 'userId' | 'role' | 'email'>): void {
+        storedUser = user;
         rebuildState();
         emit();
     },
@@ -94,9 +78,16 @@ export const authStore = {
     clear(): void {
         memoryToken = null;
         storedUser = null;
-        sessionStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
         rebuildState();
         emit();
+    },
+
+    getIsLoggingOut(): boolean {
+        return isLoggingOut;
+    },
+
+    setIsLoggingOut(value: boolean): void {
+        isLoggingOut = value;
     },
 
     subscribe(listener: Listener): () => void {

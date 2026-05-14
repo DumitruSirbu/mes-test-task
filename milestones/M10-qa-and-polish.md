@@ -1,4 +1,4 @@
-# M09 — QA, Docker Finalisation & README
+# M10 — QA, Docker Finalisation & README
 
 > **Status:** pending · **Owner:** mes-orchestrator → mes-devops → mes-qa-engineer → mes-scribe → reviewers
 
@@ -58,7 +58,7 @@ M01–M08.
 | 2 | `mes-devops` **∥** `mes-scribe` — Dockerfiles + compose + env wiring (devops); README + AI-usage docs (scribe, content already exists) | Wave 1 |
 | 3 | `mes-qa-engineer` — `scripts/smoke.sh`, final `pnpm -r test` + `test:e2e` pass, verify containers healthy | Wave 2 (needs devops done) |
 | 4 | `mes-review-security` **∥** `mes-review-logic` **∥** `mes-review-clean-code` — repo-wide final pass | Wave 3 |
-| 5 | `mes-scribe` — close work-log with rolling total, mark M09 done | Wave 4 |
+| 5 | `mes-scribe` — close work-log with rolling total, mark M10 done | Wave 4 |
 
 > Wave 2 is partially parallel: `mes-scribe` can draft the README and AI-usage docs without running containers; `mes-devops` builds the containers. `mes-qa-engineer` in Wave 3 must wait for `mes-devops` to finish so smoke tests can run against a full compose stack.
 

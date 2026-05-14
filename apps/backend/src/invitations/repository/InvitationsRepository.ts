@@ -94,6 +94,32 @@ export class InvitationsRepository extends BaseRepository<InvitationEntity> {
         return this.findOne({ purchaseId });
     }
 
+    public async findById(invitationId: number): Promise<InvitationEntity | null> {
+        return this.findOne({ invitationId });
+    }
+
+    /**
+     * Atomically mark `email_sent_at` only when it is still NULL.
+     *
+     * The `WHERE email_sent_at IS NULL` guard makes this write idempotent under
+     * concurrent retries — two racing workers will both succeed but only the first
+     * actually changes a row (layer 3 of the three-layer idempotency stack in ADR 0006).
+     *
+     * Returns the number of rows affected: `1` when this worker won the race, `0` when
+     * another worker already committed. The processor uses this to log the lost-race path
+     * without treating it as an error.
+     */
+    public async markEmailSent(invitationId: number): Promise<number> {
+        const result = await this.repository
+            .createQueryBuilder()
+            .update(InvitationEntity)
+            .set({ emailSentAt: () => 'now()' })
+            .where('invitation_id = :invitationId AND email_sent_at IS NULL', { invitationId })
+            .execute();
+
+        return result.affected ?? 0;
+    }
+
     public async findManyByPurchaseIds(purchaseIds: number[]): Promise<InvitationEntity[]> {
         if (purchaseIds.length === 0) {
             return [];

@@ -11,6 +11,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { getQueueToken } from '@nestjs/bullmq';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { Test } from '@nestjs/testing';
@@ -57,6 +58,8 @@ import { IdempotencyService } from '../src/common/idempotency/service/Idempotenc
 import { IdempotencyKeysRepository } from '../src/common/idempotency/repository/IdempotencyKeysRepository';
 import { IdempotencyKeyEntity } from '../src/common/idempotency/entity/IdempotencyKeyEntity';
 import { IdempotencyInterceptor } from '../src/common/idempotency/interceptor/IdempotencyInterceptor';
+import { INVITATION_EMAIL_QUEUE } from '../src/notifications/const/NotificationsConsts';
+import { RefreshTokensRepository } from '../src/auth/repository/RefreshTokensRepository';
 
 // ---------------------------------------------------------------------------
 // In-memory stores — each test gets a fresh context via buildTestContext().
@@ -248,6 +251,10 @@ class InMemoryPurchasesRepository {
 
     public findByIdForParent(): Promise<PurchaseEntity | null> {
         return Promise.resolve(null);
+    }
+
+    public existsCompletedForParentCourseAndStudent(): Promise<boolean> {
+        return Promise.resolve(false);
     }
 }
 
@@ -458,6 +465,10 @@ class InMemoryIdempotencyKeysRepository {
     }
 }
 
+class StubRefreshTokensRepository {
+    public async insertNew(): Promise<void> {}
+}
+
 // ---------------------------------------------------------------------------
 // Stub DataSource — passes the manager through; no real DB needed.
 // ---------------------------------------------------------------------------
@@ -560,6 +571,8 @@ async function buildTestContext(): Promise<ITestContext> {
             { provide: PurchasesRepository, useValue: purchasesRepo },
             PurchasesService,
             { provide: DataSource, useValue: dataSource },
+            { provide: RefreshTokensRepository, useClass: StubRefreshTokensRepository },
+            { provide: getQueueToken(INVITATION_EMAIL_QUEUE), useValue: { add: jest.fn().mockResolvedValue({ id: 'job-1' }) } },
             IdempotencyInterceptor,
             { provide: APP_GUARD, useClass: JwtAuthGuard },
             { provide: APP_GUARD, useClass: RolesGuard },

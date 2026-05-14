@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { DataSource } from 'typeorm';
 import { PurchaseStatusEnum } from '@mes/shared';
 import type { IPurchaseResponse } from '@mes/shared';
@@ -13,6 +15,18 @@ import { IdempotencyService } from '../../common/idempotency/service/Idempotency
 import { CreatePurchaseDto } from '../dto/CreatePurchaseDto';
 import { PURCHASE_CREATED_STATUS, PURCHASE_ENDPOINT_SIGNATURE } from '../const/PurchasesConsts';
 import { DuplicatePurchaseForStudentError } from '../../common/error/DuplicatePurchaseForStudentError';
+import {
+    INVITATION_EMAIL_QUEUE,
+    INVITATION_EMAIL_JOB_NAME,
+    INVITATION_EMAIL_ATTEMPTS,
+    INVITATION_EMAIL_BACKOFF_DELAY_MS,
+    INVITATION_EMAIL_REMOVE_ON_COMPLETE_AGE_SECONDS,
+    INVITATION_EMAIL_REMOVE_ON_COMPLETE_COUNT,
+    INVITATION_EMAIL_REMOVE_ON_FAIL_AGE_SECONDS,
+    INVITATION_EMAIL_REMOVE_ON_FAIL_COUNT,
+    INVITATION_EMAIL_JOB_ID_PREFIX,
+} from '../../notifications/const/NotificationsConsts';
+import { IInvitationEmailJob } from '../../notifications/interface/IInvitationEmailJob';
 
 interface ICreateArgs {
     parentUserId: number;
@@ -28,6 +42,7 @@ interface ITransactionResult {
     purchase: PurchaseEntity;
     invitation: InvitationEntity;
     plaintextToken: string;
+    invitationUrl: string;
 }
 
 /**
@@ -59,6 +74,7 @@ export class PurchasesService {
         private readonly invitationsService: InvitationsService,
         private readonly coursesService: CoursesService,
         private readonly idempotencyService: IdempotencyService,
+        @InjectQueue(INVITATION_EMAIL_QUEUE) private readonly invitationEmailQueue: Queue<IInvitationEmailJob>,
     ) {}
 
     public async createPurchase(args: ICreateArgs): Promise<IPurchaseResponse> {
@@ -71,6 +87,11 @@ export class PurchasesService {
         this.logger.log(
             `Purchase completed: id=${result.purchase.purchaseId} parentId=${args.parentUserId} courseId=${course.courseId} invitationId=${result.invitation.invitationId}`,
         );
+
+        // Enqueue AFTER the transaction commits. Redis is not transactional with Postgres —
+        // enqueuing inside the transaction risks a job pointing at a rolled-back row.
+        // A narrow "commit succeeded, enqueue failed" gap is accepted per async-jobs.md.
+        await this.enqueueInvitationEmail(result, course.title);
 
         return this.composeCreateResponse(result.purchase, course, result.invitation, result.plaintextToken);
     }
@@ -165,7 +186,7 @@ export class PurchasesService {
                 responseBody: replayBody,
             });
 
-            return { purchase, invitation: issued.entity, plaintextToken: issued.plaintextToken };
+            return { purchase, invitation: issued.entity, plaintextToken: issued.plaintextToken, invitationUrl: issued.invitationUrl };
         });
     }
 
@@ -198,6 +219,39 @@ export class PurchasesService {
                 url: '',
             },
         };
+    }
+
+    private async enqueueInvitationEmail(result: ITransactionResult, courseTitle: string): Promise<void> {
+        const payload: IInvitationEmailJob = {
+            invitationId: result.invitation.invitationId,
+            recipientEmail: result.invitation.studentEmail,
+            courseTitle,
+            invitationUrl: result.invitationUrl,
+        };
+
+        try {
+            await this.invitationEmailQueue.add(INVITATION_EMAIL_JOB_NAME, payload, {
+                attempts: INVITATION_EMAIL_ATTEMPTS,
+                backoff: { type: 'exponential', delay: INVITATION_EMAIL_BACKOFF_DELAY_MS },
+                removeOnComplete: {
+                    age: INVITATION_EMAIL_REMOVE_ON_COMPLETE_AGE_SECONDS,
+                    count: INVITATION_EMAIL_REMOVE_ON_COMPLETE_COUNT,
+                },
+                removeOnFail: {
+                    age: INVITATION_EMAIL_REMOVE_ON_FAIL_AGE_SECONDS,
+                    count: INVITATION_EMAIL_REMOVE_ON_FAIL_COUNT,
+                },
+                jobId: `${INVITATION_EMAIL_JOB_ID_PREFIX}${result.invitation.invitationId}`,
+            });
+        } catch (error) {
+            // Enqueue failure is non-fatal: the purchase committed successfully and the
+            // parent has the invitation URL on screen. Promote to error so on-call alerts
+            // fire; the operator can re-trigger via Bull Board or the admin resend endpoint.
+            this.logger.error(
+                { code: 'INVITATION_EMAIL_ENQUEUE_FAILED', invitationId: result.invitation.invitationId, error: (error as Error).message },
+                'Failed to enqueue invitation email job — purchase is committed; manual resend may be required',
+            );
+        }
     }
 
     private async coursesByIds(courseIds: number[]): Promise<Map<number, CourseEntity>> {

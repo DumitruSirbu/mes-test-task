@@ -1,8 +1,10 @@
 # ADR 0003 — Stateless JWT Authentication
 
-- **Status:** Accepted (2026-05-13)
+- **Status:** Accepted (2026-05-13) · **Superseded in part by [ADR 0007](./0007-refresh-token-rotation.md)** (2026-05-14)
 - **Deciders:** mes-architect, mes-orchestrator; reviewed by `mes-review-security`
 - **Tags:** auth, security
+
+> **Amendment (2026-05-14):** Superseded in part by [ADR 0007 — Refresh Token Rotation](./0007-refresh-token-rotation.md). The "in-memory access token only, no refresh" stance and the 15-minute access TTL are replaced by a short-lived access token (TTL lowered **15 → 10 minutes**) paired with an opaque refresh token in an httpOnly cookie, rotated on every use. The `Authorization: Bearer` transport for the access token, HS256 algorithm pin, 32-byte secret minimum, and error-code mappings below remain in force. Original rationale preserved below.
 
 ## Context
 

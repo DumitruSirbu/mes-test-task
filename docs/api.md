@@ -146,6 +146,96 @@ Fetch the authenticated user's profile.
 
 ---
 
+### POST /auth/refresh
+
+Rotate the refresh token and issue a new access token. Client sends the refresh cookie; backend returns a new access token (and rotated refresh cookie via `Set-Cookie`).
+
+**Auth:** Public (cookie-authenticated, not bearer token)
+
+**Idempotent:** No
+
+**Request headers:**
+
+| Header | Required | Value |
+|--------|----------|-------|
+| `X-Requested-With` | Yes | Must be `XMLHttpRequest` (CSRF defence) |
+| `Origin` or `Referer` | Yes (one of) | Must match the CORS allow-list; `Origin: null` is rejected |
+| `Cookie` | Yes | `mes_rt=<token>` from prior login/signup/refresh |
+
+**Guards:** `OriginAllowedGuard` (origin validation + CSRF header check).
+
+**Throttle:** 30 per minute, per cookie (fallback: per IP for CGNAT compatibility).
+
+**Response `200`:**
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expiresIn": 600
+}
+```
+
+**Set-Cookie response header:**
+```
+Set-Cookie: mes_rt=<new-token>; Path=/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=604800
+```
+
+Note: `Secure` flag is present only in `NODE_ENV=production`; in development it is omitted to allow `http://localhost` testing.
+
+**Reuse-detection behaviour:**
+
+- **Happy path (token not yet rotated):** Returns a new access token and a rotated refresh cookie. The refresh token's expiry is freshly set to 7 days from now.
+- **Grace-window path (rotated within 10 seconds, same user agent):** Returns the original successor token verbatim. The successor's expiry is NOT refreshed; the `Max-Age` in the response cookie is recomputed from the original expiry to prevent sliding the family forward if an attacker replays within the window.
+- **Theft detection (rotated >10 seconds ago OR different user agent):** Revokes the entire token family. Client is logged out and must re-authenticate.
+
+**Error codes:**
+
+| HTTP | Code | When |
+|------|------|------|
+| 401  | `REFRESH_TOKEN_MISSING` | Cookie absent; no `mes_rt` cookie present in the request. |
+| 401  | `REFRESH_TOKEN_INVALID` | Cookie present but token not found in the database. |
+| 401  | `REFRESH_TOKEN_EXPIRED` | Token found but expiry timestamp is past current time. |
+| 401  | `REFRESH_TOKEN_REUSED` | Token already revoked and replay detected (outside grace window or mismatched user agent). Entire family revoked. |
+| 403  | `REFRESH_CSRF_REJECTED` | CSRF validation failed: missing `X-Requested-With` header, `Origin: null`, both `Origin` and `Referer` missing, or disallowed origin. |
+
+---
+
+### POST /auth/logout
+
+Revoke the refresh token and clear the cookie. Idempotent — multiple logouts return success.
+
+**Auth:** Public (cookie-authenticated)
+
+**Idempotent:** Yes
+
+**Request headers:**
+
+| Header | Required | Value |
+|--------|----------|-------|
+| `X-Requested-With` | Yes | Must be `XMLHttpRequest` |
+| `Origin` or `Referer` | Yes (one of) | Must match the CORS allow-list |
+| `Cookie` | No | `mes_rt=<token>` (if absent, returns 204 anyway) |
+
+**Guards:** `OriginAllowedGuard` (same as `/auth/refresh`).
+
+**Throttle:** 30 per minute, per cookie.
+
+**Response `204` (No Content):**
+
+**Set-Cookie response header (clear):**
+```
+Set-Cookie: mes_rt=; Path=/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=0
+```
+
+All attributes must match the original issuing cookie — browsers (especially Safari) refuse to clear a cookie with mismatched attributes.
+
+**Error codes:**
+
+| HTTP | Code | When |
+|------|------|------|
+| 403  | `REFRESH_CSRF_REJECTED` | CSRF validation failed (same rules as `/auth/refresh`). |
+
+---
+
 ## Courses
 
 ### GET /courses
@@ -279,6 +369,9 @@ Fields:
 - `amountPence`: total cost in minor units
 - `createdAt`: ISO-8601 UTC timestamp
 - `invitation.url`: full redemption URL with embedded token (short-lived, one-time use)
+
+**Async behavior:**
+After the purchase completes, the backend enqueues an `invitation.email.send` job to BullMQ (asynchronously). The job is processed by the `InvitationEmailProcessor` worker, which logs the rendered invitation email to stdout. This job is idempotent and retried automatically on failure (up to 5 attempts with exponential backoff).
 
 **Error codes:**
 
@@ -793,9 +886,14 @@ All error responses follow the canonical JSON shape:
 | 400 | `IDEMPOTENCY_KEY_REQUIRED` | POST to an idempotent route without `Idempotency-Key` header. | Pick a UUID and retry. |
 | 401 | `AUTH_MISSING_TOKEN` | No `Authorization` header or malformed value. | Add `Authorization: Bearer <token>`. |
 | 401 | `AUTH_INVALID_TOKEN` | Token signature invalid, unknown `alg`, or `kid` not found. | Re-authenticate; get a new token. |
-| 401 | `AUTH_TOKEN_EXPIRED` | Token `exp` claim is past current time. | Token lifetime is per JWT_EXPIRES_IN env var (default 1 hour). |
+| 401 | `AUTH_TOKEN_EXPIRED` | Token `exp` claim is past current time. | Token lifetime is per JWT_EXPIRES_IN env var (default 10 min for access, 7d for refresh cookie). |
 | 401 | `AUTH_INVALID_CREDENTIALS` | Login email not found or password mismatch. | Verify email and password. |
+| 401 | `REFRESH_TOKEN_MISSING` | No `mes_rt` cookie in `POST /auth/refresh` or `/auth/logout` request. | Client must send the refresh cookie. |
+| 401 | `REFRESH_TOKEN_INVALID` | `mes_rt` cookie present but token not found in database. | Token may have been garbage-collected or never issued. Re-authenticate. |
+| 401 | `REFRESH_TOKEN_EXPIRED` | `mes_rt` token found but `expires_at` is past current time. | Token TTL window elapsed. Re-authenticate. |
+| 401 | `REFRESH_TOKEN_REUSED` | Token was rotated and replay detected (>10s ago or different user agent). Entire family revoked. | Possible token theft. Entire session is invalidated; user must re-authenticate. |
 | 403 | `AUTH_FORBIDDEN_ROLE` | Authenticated user lacks required role. | E.g., STUDENT calling `POST /purchases` (PARENT only). |
+| 403 | `REFRESH_CSRF_REJECTED` | CSRF validation failed on `/auth/refresh` or `/auth/logout`. | Check: `X-Requested-With: XMLHttpRequest` header present, `Origin` not null, at least one of `Origin` or `Referer` present, origin in allow-list. |
 | 404 | `COURSE_NOT_FOUND` | Course ID does not exist. | Verify course ID exists via `GET /courses`. |
 | 409 | `USER_EMAIL_TAKEN` | Signup email already registered. | Use a different email or login instead. |
 | 409 | `IDEMPOTENCY_BODY_MISMATCH` | Same Idempotency-Key used with different request body. | **Do not retry.** Pick a new key. |

@@ -61,7 +61,7 @@ queue.add('invitation.email.send', payload, {
     attempts: 5,
     backoff: { type: 'exponential', delay: 2_000 },     // 2s, 4s, 8s, 16s, 32s (capped at 60s)
     removeOnComplete: { age: 86_400, count: 1_000 },     // 24h / 1000 most-recent
-    removeOnFail: false,                                 // keep failed jobs for inspection
+    removeOnFail: { age: 604_800, count: 1_000 },        // 7 days / 1000 most-recent (was false, now retention)
     jobId: `invitation-email-${payload.invitationId}`,   // dedupe at the queue level
 });
 ```
@@ -70,7 +70,7 @@ The `jobId` deduplication means a parent who somehow triggers two enqueues for t
 
 ### Backoff cap
 
-BullMQ doesn't natively cap exponential delay. We implement the cap by computing `Math.min(2_000 * 2 ** attemptsMade, 60_000)` inside a custom `backoff: { type: 'custom' }` strategy if the default exponential overshoots the cap before `attempts: 5` exhausts. With `attempts: 5` and `delay: 2_000`, the natural sequence (2, 4, 8, 16, 32 seconds) stays under 60s anyway, so the default exponential strategy is acceptable for v1.
+BullMQ doesn't natively cap exponential delay. With `attempts: 5` and `delay: 2_000`, the natural sequence (2s, 4s, 8s, 16s, 32s) stays under 60s anyway, so the default exponential strategy is acceptable for v1 and does not need a custom cap.
 
 ### Processor
 
@@ -108,7 +108,13 @@ export class InvitationEmailProcessor extends WorkerHost {
         // (everything after the `@`); the plaintext token MUST NOT reach the log in any form.
         const recipientEmailDomain = job.data.recipientEmail.split('@')[1] ?? 'unknown';
         this.logger.log({ invitationId: invitation.invitationId, recipientEmailDomain }, '[invitation.email.send] would send');
-        await this.invitationsRepository.markEmailSent(invitation.invitationId, new Date());
+        
+        // markEmailSent is idempotent at the DB level: it runs UPDATE ... WHERE email_sent_at IS NULL,
+        // returning the affected row count. Lost races (concurrent retries) are detected when affected === 0.
+        const affected = await this.invitationsRepository.markEmailSent(invitation.invitationId);
+        if (affected === 0) {
+            this.logger.log({ invitationId: invitation.invitationId }, 'INVITATION_EMAIL_SEND_LOST_RACE');
+        }
     }
 
     @OnWorkerEvent('failed')
@@ -130,9 +136,9 @@ Rule of thumb: if a service called from inside the processor itself throws a `Do
 
 Three idempotency layers stacked:
 
-1. **Queue-level** (`jobId` dedup) prevents duplicate enqueues.
-2. **Processor-level** (`email_sent_at IS NULL` check) prevents duplicate sends on retry of a transient failure.
-3. **DB-level** (`UPDATE ... WHERE email_sent_at IS NULL`) makes the `markEmailSent` write itself idempotent under concurrent retries.
+1. **Queue-level** (`jobId` dedup) prevents duplicate enqueues — BullMQ rejects a second `add` with the same `jobId`.
+2. **Processor-level** (`email_sent_at IS NULL` check) prevents duplicate sends on retry of a transient failure — early return if the marker is already set.
+3. **DB-level** (`UPDATE invitations SET email_sent_at = now() WHERE invitation_id = $id AND email_sent_at IS NULL`) makes the `markEmailSent` write itself idempotent under concurrent retries — only the first concurrent job succeeds; others detect the lost race via `affected === 0` and return success (the work was done).
 
 ## Producer contract (PurchasesService → queue)
 
@@ -185,9 +191,11 @@ app.enableShutdownHooks();   // triggers OnModuleDestroy on workers — BullMQ c
 
 Verified by `docker compose stop backend` (M08 DoD) — the SIGTERM should drain without orphaning in-flight jobs.
 
-## Optional: Bull Board
+## Bull Board
 
-`@bull-board/express` + `@bull-board/nestjs` mounted at `GET /admin/queues`, guarded by `@Roles(UserRoleEnum.ADMIN)`. Provides UI for inspecting failed jobs, retrying, and viewing payloads. Bonus signal — implementable in M08 if budget allows.
+`@bull-board/express` + `@bull-board/nestjs` mounted at `GET /admin/queues`, guarded by `@Roles(UserRoleEnum.ADMIN)`. Provides UI for inspecting active, completed, and failed jobs, retrying failed jobs, and viewing payloads.
+
+**Auth wiring:** Bull Board auth is configured via `BullBoardModule.forRoot({ middleware: BullBoardAuthMiddleware, ... })`, not via a controller-level guard. The middleware intercepts the request before the board attempts to render, validates the bearer token, and grants access only to ADMIN users. This ordering ensures the auth check runs at the earliest possible point.
 
 ## Observability
 

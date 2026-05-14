@@ -2,15 +2,17 @@ import { useSyncExternalStore } from 'react';
 import { UserRoleEnum } from '@mes/shared';
 
 /**
- * Tiny auth store backed by `localStorage`. Persists the access token + minimal profile
- * (id, role) so route guards can decide without an extra `/auth/me` round-trip on load.
+ * Auth store for the web SPA.
  *
- * The store is intentionally minimal — TanStack Query / Zustand are out of scope for
- * this milestone's "minimal viable parent journey". Upgrade paths are documented in
- * docs/architecture/overview.md.
+ * Security model (M10):
+ * - Access token is kept in a module-scoped variable (memory only). Never written to
+ *   any Web Storage — XSS cannot exfiltrate it.
+ * - User metadata (userId, email, role) is populated exclusively from the boot-time
+ *   /auth/me call. No localStorage/sessionStorage persistence — the httpOnly refresh
+ *   cookie keeps the session alive across reloads.
+ * - `isLoggingOut` guards against a race where an in-flight silent-refresh resolves
+ *   after logout completes, which would otherwise resurrect the store.
  */
-
-const STORAGE_KEY = 'mes.auth.v1';
 
 export interface IAuthState {
     accessToken: string;
@@ -23,21 +25,24 @@ type Listener = () => void;
 
 const listeners = new Set<Listener>();
 
-const loadInitial = (): IAuthState | null => {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+let memoryToken: string | null = null;
+let storedUser: Pick<IAuthState, 'userId' | 'role' | 'email'> | null = null;
+let cachedState: IAuthState | null = null;
+let isLoggingOut = false;
 
-        if (!raw) {
-            return null;
-        }
-
-        return JSON.parse(raw) as IAuthState;
-    } catch {
-        return null;
+const rebuildState = (): void => {
+    if (!memoryToken || !storedUser) {
+        cachedState = null;
+        return;
     }
-};
 
-let state: IAuthState | null = loadInitial();
+    cachedState = {
+        accessToken: memoryToken,
+        userId: storedUser.userId,
+        role: storedUser.role,
+        email: storedUser.email,
+    };
+};
 
 const emit = (): void => {
     for (const listener of listeners) {
@@ -47,19 +52,42 @@ const emit = (): void => {
 
 export const authStore = {
     getState(): IAuthState | null {
-        return state;
+        return cachedState;
     },
 
     setState(next: IAuthState): void {
-        state = next;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        isLoggingOut = false;
+        memoryToken = next.accessToken;
+        storedUser = { userId: next.userId, role: next.role, email: next.email };
+        rebuildState();
+        emit();
+    },
+
+    setToken(token: string): void {
+        memoryToken = token;
+        rebuildState();
+        emit();
+    },
+
+    setUser(user: Pick<IAuthState, 'userId' | 'role' | 'email'>): void {
+        storedUser = user;
+        rebuildState();
         emit();
     },
 
     clear(): void {
-        state = null;
-        localStorage.removeItem(STORAGE_KEY);
+        memoryToken = null;
+        storedUser = null;
+        rebuildState();
         emit();
+    },
+
+    getIsLoggingOut(): boolean {
+        return isLoggingOut;
+    },
+
+    setIsLoggingOut(value: boolean): void {
+        isLoggingOut = value;
     },
 
     subscribe(listener: Listener): () => void {

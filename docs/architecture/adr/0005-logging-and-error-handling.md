@@ -1,8 +1,20 @@
 # ADR 0005 — Logging & Error Handling
 
-- **Status:** Accepted (2026-05-13)
+- **Status:** Accepted (2026-05-13) · **Amended by [ADR 0007](./0007-refresh-token-rotation.md)** (2026-05-14)
 - **Deciders:** mes-architect, mes-orchestrator; reviewed by `mes-review-security` (redaction) and `mes-review-logic` (error shape)
 - **Tags:** observability, error-handling, security
+
+> **Amendment (2026-05-14) — refresh-token additions.** [ADR 0007](./0007-refresh-token-rotation.md) introduces:
+>
+> 1. **New canonical error codes** added to the table below:
+>    - `REFRESH_TOKEN_MISSING` (401) — `RefreshTokenMissingError` — no cookie on `/auth/refresh` or `/auth/logout`.
+>    - `REFRESH_TOKEN_INVALID` (401) — `RefreshTokenInvalidError` — cookie present, hash not found.
+>    - `REFRESH_TOKEN_EXPIRED` (401) — `RefreshTokenExpiredError` — natural expiry; no family revocation.
+>    - `REFRESH_TOKEN_REUSED` (401) — `RefreshTokenReusedError` — reuse-detection theft path; entire family revoked; `logger.warn({ code: 'REFRESH_TOKEN_REUSED', userId, familyId, ipPrefix, uaMatch })` emitted as a security signal.
+>    - `REFRESH_CSRF_REJECTED` (403) — `RefreshCsrfRejectedError` — `OriginAllowedGuard` or `X-Requested-With` check failed.
+>    - `REFRESH_TOKEN_RETENTION_BREACH` (n/a — log-only) — emitted by the cleanup processor's guardrail SQL probe when `revoked_at` rows past 60 days are found. Operator-visible signal that the cleanup job has been silently failing.
+> 2. **New `pino` redact paths** added to the full-redact set: `set-cookie`, `cookie`, `mes_rt`, `user_agent`, `ip`. (The first two are already partially covered by header-level redaction; this amendment makes them explicit and adds the new fields introduced by the `refresh_tokens` table.)
+> 3. **Observability deliverables downgrade.** Where M09's brief originally proposed "metrics counters" for refresh success/failure/family-revocation, the deliverables are downgraded to **structured log fields with stable `code` values**. There is no metrics pipeline today; promoting these signals to counters is the work of a future observability ADR. The `code:` field is the contract operators search on.
 
 ## Context
 

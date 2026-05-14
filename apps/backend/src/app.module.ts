@@ -27,9 +27,11 @@ import { PurchaseEntity } from './purchases/entity/PurchaseEntity';
 import { EnrolmentEntity } from './enrolments/entity/EnrolmentEntity';
 import { LessonsModule } from './lessons/LessonsModule';
 import { AdminModule } from './admin/AdminModule';
+import { NotificationsModule } from './notifications/NotificationsModule';
 import { LessonEntity } from './lessons/entity/LessonEntity';
-import { ProxyAwareThrottlerGuard } from './common/guard/ProxyAwareThrottlerGuard';
-import { THROTTLE_DEFAULT_LIMIT, THROTTLE_WINDOW_MS, THROTTLER_DEFAULT_NAME } from './auth/const/AuthConsts';
+import { CookieAwareThrottlerGuard } from './common/guard/CookieAwareThrottlerGuard';
+import { THROTTLE_DEFAULT_LIMIT, THROTTLE_WINDOW_MS, THROTTLER_DEFAULT_NAME, THROTTLE_REFRESH_LIMIT, THROTTLE_REFRESH_TTL_MS, THROTTLER_REFRESH_NAME } from './auth/const/AuthConsts';
+import { RefreshTokenEntity } from './auth/entity/RefreshTokenEntity';
 
 /**
  * Root module. Order matters:
@@ -46,14 +48,17 @@ import { THROTTLE_DEFAULT_LIMIT, THROTTLE_WINDOW_MS, THROTTLER_DEFAULT_NAME } fr
 @Module({
     imports: [
         ConfigModule.forRoot({ isGlobal: true }),
-        ThrottlerModule.forRoot([{ name: THROTTLER_DEFAULT_NAME, ttl: THROTTLE_WINDOW_MS, limit: THROTTLE_DEFAULT_LIMIT }]),
+        ThrottlerModule.forRoot([
+            { name: THROTTLER_DEFAULT_NAME, ttl: THROTTLE_WINDOW_MS, limit: THROTTLE_DEFAULT_LIMIT },
+            { name: THROTTLER_REFRESH_NAME, ttl: THROTTLE_REFRESH_TTL_MS, limit: THROTTLE_REFRESH_LIMIT },
+        ]),
         ClsRequestModule,
         LoggerModule,
         TypeOrmModule.forRootAsync({
             inject: [ConfigService],
             useFactory: (config: ConfigService) => ({
                 ...buildPostgresOptionsFromConfig(config),
-                entities: [UserEntity, CourseEntity, PurchaseEntity, InvitationEntity, IdempotencyKeyEntity, EnrolmentEntity, LessonEntity],
+                entities: [UserEntity, CourseEntity, PurchaseEntity, InvitationEntity, IdempotencyKeyEntity, EnrolmentEntity, LessonEntity, RefreshTokenEntity],
             }),
         }),
         UsersModule,
@@ -62,6 +67,7 @@ import { THROTTLE_DEFAULT_LIMIT, THROTTLE_WINDOW_MS, THROTTLER_DEFAULT_NAME } fr
         CoursesModule,
         InvitationsModule,
         IdempotencyModule,
+        NotificationsModule,
         PurchasesModule,
         LessonsModule,
         AdminModule,
@@ -69,7 +75,10 @@ import { THROTTLE_DEFAULT_LIMIT, THROTTLE_WINDOW_MS, THROTTLER_DEFAULT_NAME } fr
     controllers: [AppController],
     providers: [
         AppService,
-        { provide: APP_GUARD, useClass: ProxyAwareThrottlerGuard },
+        // CookieAwareThrottlerGuard extends ProxyAwareThrottlerGuard and overrides getTracker
+        // to prefer the mes_rt cookie for endpoints that use the named 'refresh' throttler,
+        // falling back to user-id / X-Forwarded-For / req.ip for all other routes.
+        { provide: APP_GUARD, useClass: CookieAwareThrottlerGuard },
         { provide: APP_GUARD, useClass: JwtAuthGuard },
         { provide: APP_GUARD, useClass: RolesGuard },
         {

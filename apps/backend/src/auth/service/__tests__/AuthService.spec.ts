@@ -1,11 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { DataSource } from 'typeorm';
 import * as argon2 from 'argon2';
 import { UserRoleEnum } from '@mes/shared';
 import { AuthService } from '../AuthService';
 import { UsersRepository } from '../../../users/repository/UsersRepository';
 import { UsersService } from '../../../users/service/UsersService';
+import { RefreshTokensRepository } from '../../repository/RefreshTokensRepository';
 import { UserEmailTakenError } from '../../../common/error/UserEmailTakenError';
 import { UnauthorizedError } from '../../../common/error/UnauthorizedError';
 import { UserEntity } from '../../../users/entity/UserEntity';
@@ -16,6 +18,9 @@ import { IAuthUserProfile } from '../../interface/IAuthUserProfile';
 type UsersRepositoryMock = Pick<UsersRepository, 'findByEmail' | 'findById' | 'insertUser' | 'updatePasswordHash'>;
 type UsersServiceMock = Pick<UsersService, 'findById' | 'findByEmail' | 'updatePasswordHash'>;
 type JwtServiceMock = Pick<JwtService, 'sign'>;
+type RefreshTokensRepositoryMock = Pick<RefreshTokensRepository, 'insertNew' | 'findByTokenHash' | 'selectForUpdate' | 'revokeRow' | 'revokeRowForLogout' | 'revokeFamily'>;
+
+const META = { userAgent: 'jest-test-agent', ip: '127.0.0.1' };
 
 describe('AuthService', () => {
     let service: AuthService;
@@ -30,6 +35,20 @@ describe('AuthService', () => {
     const findByEmailServiceMock = jest.fn();
     const updatePasswordHashServiceMock = jest.fn();
     const signMock = jest.fn().mockReturnValue('jwt-token');
+    const insertNewMock = jest.fn();
+    const findByTokenHashMock = jest.fn();
+    const selectForUpdateMock = jest.fn();
+    const revokeRowMock = jest.fn();
+    const revokeRowForLogoutMock = jest.fn();
+    const revokeFamilyMock = jest.fn();
+
+    // DataSource mock — transaction() calls the callback with a manager mock.
+    const managerMock = {
+        getRepository: jest.fn(),
+        save: jest.fn(),
+    };
+    const transactionMock = jest.fn().mockImplementation((cb: (manager: unknown) => Promise<unknown>) => cb(managerMock));
+    const dataSourceMock = { transaction: transactionMock };
 
     const buildUser = (overrides?: Partial<UserEntity>): UserEntity => {
         const entity = new UserEntity();
@@ -45,9 +64,31 @@ describe('AuthService', () => {
         return Object.assign(entity, overrides ?? {});
     };
 
+    const buildRefreshToken = (overrides?: Partial<{ id: number; tokenHash: string; expiresAt: Date; revokedAt: Date | null; replacedById: number | null; familyId: string; userId: number; userAgent: string | null; ip: string | null; issuedAt: Date }>) => {
+        const base = {
+            id: 10,
+            tokenHash: 'a'.repeat(64),
+            expiresAt: new Date(Date.now() + 7 * 86_400_000),
+            revokedAt: null,
+            replacedById: null,
+            familyId: 'family-uuid',
+            userId: 1,
+            userAgent: META.userAgent,
+            ip: META.ip,
+            issuedAt: new Date(),
+        };
+
+        return Object.assign(base, overrides ?? {});
+    };
+
     beforeEach(async () => {
         jest.clearAllMocks();
         signMock.mockReturnValue('jwt-token');
+        transactionMock.mockImplementation((cb: (manager: unknown) => Promise<unknown>) => cb(managerMock));
+        insertNewMock.mockResolvedValue(buildRefreshToken({ id: 99 }));
+        revokeRowMock.mockResolvedValue(1);
+        revokeRowForLogoutMock.mockResolvedValue(1);
+        revokeFamilyMock.mockResolvedValue(1);
 
         const usersRepositoryMock: UsersRepositoryMock = {
             findByEmail: findByEmailMock,
@@ -66,13 +107,24 @@ describe('AuthService', () => {
             sign: signMock,
         };
 
+        const refreshTokensRepositoryMock: RefreshTokensRepositoryMock = {
+            insertNew: insertNewMock,
+            findByTokenHash: findByTokenHashMock,
+            selectForUpdate: selectForUpdateMock,
+            revokeRow: revokeRowMock,
+            revokeRowForLogout: revokeRowForLogoutMock,
+            revokeFamily: revokeFamilyMock,
+        };
+
         const moduleRef: TestingModule = await Test.createTestingModule({
             providers: [
                 AuthService,
                 { provide: UsersRepository, useValue: usersRepositoryMock },
                 { provide: UsersService, useValue: usersServiceMock },
                 { provide: JwtService, useValue: jwtServiceMock },
-                { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('15m') } },
+                { provide: RefreshTokensRepository, useValue: refreshTokensRepositoryMock },
+                { provide: DataSource, useValue: dataSourceMock },
+                { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('10m') } },
             ],
         }).compile();
 
@@ -82,11 +134,12 @@ describe('AuthService', () => {
     });
 
     describe('signup', () => {
-        it('hashes the password and persists a PARENT user', async () => {
+        it('hashes the password and persists a PARENT user, returns access token + refresh token pair', async () => {
             findByEmailMock.mockResolvedValue(null);
             insertUserMock.mockImplementation((entity: ICreateUserInput) => Promise.resolve(buildUser({ ...entity })));
+            findByIdServiceMock.mockResolvedValue(buildUser());
 
-            const result = await service.signup({ email: 'parent@mes.test', password: 'correcthorse12' });
+            const result = await service.signup({ email: 'parent@mes.test', password: 'correcthorse12' }, META);
 
             expect(insertUserMock).toHaveBeenCalledTimes(1);
             const firstCallArgs = insertUserMock.mock.calls[0] as [ICreateUserInput];
@@ -95,14 +148,16 @@ describe('AuthService', () => {
             expect(persisted.passwordHash).toBeDefined();
             expect(persisted.passwordHash).not.toBe('correcthorse12');
             expect(await argon2.verify(persisted.passwordHash, 'correcthorse12')).toBe(true);
-            expect(result.accessToken).toBe('jwt-token');
-            expect(result.expiresIn).toBe(900);
+            expect(result.accessToken.accessToken).toBe('jwt-token');
+            expect(result.accessToken.expiresIn).toBe(600);
+            expect(result.refreshToken.raw).toBeDefined();
+            expect(result.refreshToken.expiresAt).toBeInstanceOf(Date);
         });
 
         it('throws UserEmailTakenError when the email already exists', async () => {
             findByEmailMock.mockResolvedValue(buildUser());
 
-            await expect(service.signup({ email: 'parent@mes.test', password: 'correcthorse12' })).rejects.toBeInstanceOf(UserEmailTakenError);
+            await expect(service.signup({ email: 'parent@mes.test', password: 'correcthorse12' }, META)).rejects.toBeInstanceOf(UserEmailTakenError);
             expect(insertUserMock).not.toHaveBeenCalled();
         });
 
@@ -113,7 +168,7 @@ describe('AuthService', () => {
             const pgUniqueError = new QueryFailedError('INSERT', [], { code: '23505' } as unknown as Error);
             insertUserMock.mockRejectedValue(pgUniqueError);
 
-            await expect(service.signup({ email: 'race@mes.test', password: 'correcthorse12' })).rejects.toBeInstanceOf(UserEmailTakenError);
+            await expect(service.signup({ email: 'race@mes.test', password: 'correcthorse12' }, META)).rejects.toBeInstanceOf(UserEmailTakenError);
         });
     });
 
@@ -127,16 +182,17 @@ describe('AuthService', () => {
             });
             findByEmailMock.mockResolvedValue(buildUser({ passwordHash }));
 
-            const result = await service.login({ email: 'parent@mes.test', password: 'correcthorse12' });
+            const result = await service.login({ email: 'parent@mes.test', password: 'correcthorse12' }, META);
 
-            expect(result.accessToken).toBe('jwt-token');
-            expect(signMock).toHaveBeenCalledWith({ sub: 1, role: UserRoleEnum.PARENT }, { expiresIn: '15m' });
+            expect(result.accessToken.accessToken).toBe('jwt-token');
+            expect(signMock).toHaveBeenCalledWith({ sub: 1, role: UserRoleEnum.PARENT }, { expiresIn: '10m' });
+            expect(result.refreshToken.raw).toBeDefined();
         });
 
         it('throws AUTH_INVALID_CREDENTIALS when the email is unknown', async () => {
             findByEmailMock.mockResolvedValue(null);
 
-            await expect(service.login({ email: 'nobody@mes.test', password: 'whatever-12' })).rejects.toMatchObject({
+            await expect(service.login({ email: 'nobody@mes.test', password: 'whatever-12' }, META)).rejects.toMatchObject({
                 code: 'AUTH_INVALID_CREDENTIALS',
             });
         });
@@ -150,7 +206,7 @@ describe('AuthService', () => {
             });
             findByEmailMock.mockResolvedValue(buildUser({ passwordHash }));
 
-            await expect(service.login({ email: 'parent@mes.test', password: 'wrong-password-1' })).rejects.toBeInstanceOf(UnauthorizedError);
+            await expect(service.login({ email: 'parent@mes.test', password: 'wrong-password-1' }, META)).rejects.toBeInstanceOf(UnauthorizedError);
         });
     });
 
@@ -174,6 +230,26 @@ describe('AuthService', () => {
             findByIdServiceMock.mockResolvedValue(null);
 
             await expect(service.getProfile(999)).rejects.toMatchObject({ code: 'AUTH_INVALID_TOKEN' });
+        });
+    });
+
+    describe('logout', () => {
+        it('returns silently when rawToken is null', async () => {
+            await expect(service.logout(null)).resolves.toBeUndefined();
+            expect(findByTokenHashMock).not.toHaveBeenCalled();
+        });
+
+        it('returns silently when token row is not found', async () => {
+            findByTokenHashMock.mockResolvedValue(null);
+
+            await expect(service.logout('nonexistent-raw-token')).resolves.toBeUndefined();
+        });
+
+        it('returns silently when token is already revoked', async () => {
+            findByTokenHashMock.mockResolvedValue(buildRefreshToken({ revokedAt: new Date() }));
+
+            await expect(service.logout('already-revoked')).resolves.toBeUndefined();
+            expect(revokeRowMock).not.toHaveBeenCalled();
         });
     });
 });

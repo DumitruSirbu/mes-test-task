@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { getQueueToken } from '@nestjs/bullmq';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { Test } from '@nestjs/testing';
@@ -40,6 +41,8 @@ import { IdempotencyService } from '../src/common/idempotency/service/Idempotenc
 import { IdempotencyKeysRepository } from '../src/common/idempotency/repository/IdempotencyKeysRepository';
 import { IdempotencyKeyEntity } from '../src/common/idempotency/entity/IdempotencyKeyEntity';
 import { IdempotencyInterceptor } from '../src/common/idempotency/interceptor/IdempotencyInterceptor';
+import { INVITATION_EMAIL_QUEUE } from '../src/notifications/const/NotificationsConsts';
+import { RefreshTokensRepository } from '../src/auth/repository/RefreshTokensRepository';
 
 /**
  * Integration test for `POST /purchases` and `GET /me/purchases`.
@@ -209,6 +212,10 @@ class InMemoryPurchasesRepository {
     public findByIdForParent(): Promise<PurchaseEntity | null> {
         return Promise.resolve(null);
     }
+
+    public existsCompletedForParentCourseAndStudent(): Promise<boolean> {
+        return Promise.resolve(false);
+    }
 }
 
 interface IInvitationRow {
@@ -339,6 +346,10 @@ class StubDataSource {
     }
 }
 
+class StubRefreshTokensRepository {
+    public async insertNew(): Promise<void> {}
+}
+
 describe('Purchases (e2e)', () => {
     let app: INestApplication<App>;
     const TEST_JWT_SECRET = 'test-secret-must-be-at-least-32-characters-long-xxxxxx';
@@ -400,6 +411,8 @@ describe('Purchases (e2e)', () => {
                 { provide: PurchasesRepository, useValue: purchasesRepo },
                 PurchasesService,
                 { provide: DataSource, useClass: StubDataSource },
+                { provide: RefreshTokensRepository, useClass: StubRefreshTokensRepository },
+                { provide: getQueueToken(INVITATION_EMAIL_QUEUE), useValue: { add: jest.fn().mockResolvedValue({ id: 'job-1' }) } },
                 IdempotencyInterceptor,
                 { provide: APP_GUARD, useClass: JwtAuthGuard },
                 { provide: APP_GUARD, useClass: RolesGuard },
@@ -438,7 +451,7 @@ describe('Purchases (e2e)', () => {
         expect(body.amountPence).toBe(19900);
         expect(body.invitation.studentEmail).toBe('kid@example.com');
         expect(body.invitation.status).toBe(InvitationStatusEnum.ISSUED);
-        expect(body.invitation.url).toMatch(/token=/);
+        expect(body.invitation.url).toMatch(/\/onboard\//);
     });
 
     it('non-PARENT (STUDENT) → 403 AUTH_FORBIDDEN_ROLE', async () => {

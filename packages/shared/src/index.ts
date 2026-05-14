@@ -1,6 +1,7 @@
 // Barrel exports for @mes/shared.
 // Add new modules here as they are introduced by `mes-shared-maintainer`.
 
+export * from './const/AuthCookieConsts.js';
 export * from './enums/UserRoleEnum.js';
 export * from './enums/PurchaseStatusEnum.js';
 export * from './enums/InvitationStatusEnum.js';
@@ -9,6 +10,7 @@ export * from './types/IJwtPayload.js';
 export * from './types/IAuthenticatedUser.js';
 export * from './types/IApiErrorResponse.js';
 export * from './types/IAuthTokenResponse.js';
+export * from './types/RefreshErrorCode.js';
 export * from './types/ICourseResponse.js';
 export * from './types/ICourseWithLessonsResponse.js';
 export * from './types/ILessonResponse.js';

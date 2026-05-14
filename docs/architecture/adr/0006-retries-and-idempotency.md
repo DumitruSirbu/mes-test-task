@@ -1,8 +1,14 @@
 # ADR 0006 — Retries & Idempotency
 
-- **Status:** Accepted (2026-05-13)
+- **Status:** Accepted (2026-05-13) · **Amended by [ADR 0007](./0007-refresh-token-rotation.md)** (2026-05-14)
 - **Deciders:** mes-architect, mes-orchestrator; reviewed by `mes-review-logic`
 - **Tags:** reliability, idempotency, retries
+
+> **Amendment (2026-05-14) — frontend 401 retry rule.** [ADR 0007](./0007-refresh-token-rotation.md) supersedes the original "no retry on 401" rule in §3 (Frontend HTTP). The new behaviour:
+>
+> > On `AUTH_TOKEN_EXPIRED` (401) — attempt one silent refresh; on success, retry the original request **exactly once**. **The retried request bypasses the 401 handler entirely** — any 401 on the retry (regardless of error code) drops the token and redirects to `/login`, never re-enters the refresh path. On `AUTH_INVALID_TOKEN`, `AUTH_FORBIDDEN_ROLE`, or refresh failure → drop token, redirect to `/login`. **Never retry on any other 4xx.** This guarantees no recursion under clock skew or pathological backend states.
+>
+> The original "no retry on 401" line in §3 below should be read in light of this amendment. All other rules in this ADR are unchanged.
 
 ## Context
 

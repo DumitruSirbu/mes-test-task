@@ -1,7 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { getQueueToken } from '@nestjs/bullmq';
 import { DataSource, EntityManager } from 'typeorm';
 import { PurchaseStatusEnum } from '@mes/shared';
 import { PurchasesService } from '../PurchasesService';
+import { INVITATION_EMAIL_QUEUE } from '../../../notifications/const/NotificationsConsts';
 import { PurchasesRepository } from '../../repository/PurchasesRepository';
 import { InvitationsRepository } from '../../../invitations/repository/InvitationsRepository';
 import { InvitationsService } from '../../../invitations/service/InvitationsService';
@@ -123,6 +125,7 @@ describe('PurchasesService', () => {
                 { provide: InvitationsService, useValue: invitationsServiceMock },
                 { provide: CoursesService, useValue: coursesServiceMock },
                 { provide: IdempotencyService, useValue: idempotencyServiceMock },
+                { provide: getQueueToken(INVITATION_EMAIL_QUEUE), useValue: { add: jest.fn().mockResolvedValue({ id: 'job-1' }) } },
             ],
         }).compile();
 
@@ -133,7 +136,7 @@ describe('PurchasesService', () => {
         it('writes purchase + invitation + idempotency row inside the same transaction', async () => {
             findCourseMock.mockResolvedValue(buildCourse());
             insertPurchaseMock.mockResolvedValue(buildPurchase());
-            issueInvitationMock.mockResolvedValue({ entity: buildInvitation(), plaintextToken: 'plaintext-xyz' });
+            issueInvitationMock.mockResolvedValue({ entity: buildInvitation(), plaintextToken: 'plaintext-xyz', invitationUrl: 'https://mes.test/invite/plaintext-xyz' });
             persistKeyMock.mockResolvedValue(undefined);
 
             const result = await service.createPurchase({
@@ -184,7 +187,7 @@ describe('PurchasesService', () => {
         it('rolls back when idempotency persistence fails (purchase + invitation not visible)', async () => {
             findCourseMock.mockResolvedValue(buildCourse());
             insertPurchaseMock.mockResolvedValue(buildPurchase());
-            issueInvitationMock.mockResolvedValue({ entity: buildInvitation(), plaintextToken: 'plaintext-xyz' });
+            issueInvitationMock.mockResolvedValue({ entity: buildInvitation(), plaintextToken: 'plaintext-xyz', invitationUrl: 'https://mes.test/invite/plaintext-xyz' });
             persistKeyMock.mockRejectedValue(new Error('IDEMPOTENCY_BODY_MISMATCH'));
 
             await expect(
@@ -236,7 +239,7 @@ describe('PurchasesService', () => {
             findCourseMock.mockResolvedValue(buildCourse());
             // existsDuplicateMock returns false from beforeEach.
             insertPurchaseMock.mockResolvedValue(buildPurchase());
-            issueInvitationMock.mockResolvedValue({ entity: buildInvitation(), plaintextToken: 'plaintext-xyz' });
+            issueInvitationMock.mockResolvedValue({ entity: buildInvitation(), plaintextToken: 'plaintext-xyz', invitationUrl: 'https://mes.test/invite/plaintext-xyz' });
             persistKeyMock.mockResolvedValue(undefined);
 
             await service.createPurchase({

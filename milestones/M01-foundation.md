@@ -48,7 +48,7 @@ Nothing.
 - `docs/features/*.md` — placeholder stubs to be filled per feature milestone.
 - `docs/development/{setup,docker,environment}.md` — placeholder stubs.
 - `docs/ai-usage/.gitkeep`.
-- `README.md` — skeleton with all 12 sections per the scribe contents checklist; sections filled by mes-scribe progressively, finalised in M09.
+- `README.md` — skeleton with all 12 sections per the scribe contents checklist; sections filled by mes-scribe progressively, finalised in M10.
 
 ## Agent dispatch plan
 
@@ -112,11 +112,11 @@ No blockers. No secrets in repo (.env.example uses placeholders + a clearly-mark
 
 - The Nest scaffold's default `src/app.controller.spec.ts`, `app.controller.ts`, `app.service.ts` were left in place. The brief notes "Cleaned: drop default `app.controller.spec.ts` if unused" — they will be removed in M03 when `auth`/`users` modules replace the placeholder controller, to keep this milestone strictly scaffolding.
 - `apps/backend/eslint.config.mjs` was kept as Nest scaffolded it (already conforms to the conventions in practice — extends `typescript-eslint` recommended, enables `no-floating-promises` with a TS project, `no-unsafe-argument` warn). No need to overwrite.
-- Used Node 20.20.1 (host) despite `"engines": { "node": ">=22" }` — produces a `WARN  Unsupported engine` line but is otherwise harmless for build/lint/compose. The DoD does not require Node 22 at the host level; Docker images use the appropriate base image when M09 containerises the apps.
+- Used Node 20.20.1 (host) despite `"engines": { "node": ">=22" }` — produces a `WARN  Unsupported engine` line but is otherwise harmless for build/lint/compose. The DoD does not require Node 22 at the host level; Docker images use the appropriate base image when M10 containerises the apps.
 
 **Not yet wired (deferred to M02+)**
 
 - ADRs and architecture docs (M02 — `mes-architect`).
 - `nestjs-pino`, `nestjs-cls`, `AllExceptionsFilter`, health endpoints, `DomainException` base — M03.
 - Frontend dependency stack (TanStack Query, RHF + Zod, Tailwind v4, shadcn) — added per-milestone as needed.
-- Containerised apps — M09.
+- Containerised apps — M10.

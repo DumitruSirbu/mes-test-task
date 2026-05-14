@@ -29,6 +29,8 @@ import { CourseEntity } from '../src/courses/entity/CourseEntity';
 import { AdminController } from '../src/admin/controller/AdminController';
 import { AdminService } from '../src/admin/service/AdminService';
 import { IAdminParentRow } from '../src/admin/interface/IAdminParentRow';
+import { DataSource } from 'typeorm';
+import { RefreshTokensRepository } from '../src/auth/repository/RefreshTokensRepository';
 
 /**
  * E2E integration tests for the admin panel endpoints.
@@ -166,6 +168,16 @@ class InMemoryCoursesRepository {
     }
 }
 
+class StubDataSource {
+    public async transaction<T>(runInTransaction: (manager: import('typeorm').EntityManager) => Promise<T>): Promise<T> {
+        return runInTransaction({} as import('typeorm').EntityManager);
+    }
+}
+
+class StubRefreshTokensRepository {
+    public async insertNew(): Promise<void> {}
+}
+
 describe('Admin (e2e)', () => {
     let app: INestApplication<App>;
     let jwtService: JwtService;
@@ -221,6 +233,8 @@ describe('Admin (e2e)', () => {
                 { provide: UsersService, useValue: usersService },
                 { provide: PurchasesRepository, useValue: purchasesRepo },
                 { provide: CoursesRepository, useValue: coursesRepo },
+                { provide: RefreshTokensRepository, useClass: StubRefreshTokensRepository },
+                { provide: DataSource, useClass: StubDataSource },
                 { provide: APP_GUARD, useClass: JwtAuthGuard },
                 { provide: APP_GUARD, useClass: RolesGuard },
                 {

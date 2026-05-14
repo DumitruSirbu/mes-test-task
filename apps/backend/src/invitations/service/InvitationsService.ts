@@ -54,13 +54,14 @@ export class InvitationsService {
     }
 
     /**
-     * Issue an invitation inside the caller's transaction. Returns the persisted entity
-     * AND the plaintext token (the only path the plaintext takes out of the service).
+     * Issue an invitation inside the caller's transaction. Returns the persisted entity,
+     * the plaintext token, and the prebuilt invitation URL (the only path the plaintext
+     * takes out of the service — callers must not reconstruct the URL themselves).
      */
     public async issueWithinTransaction(
         manager: EntityManager,
         params: { purchaseId: number; studentEmail: string },
-    ): Promise<{ entity: InvitationEntity; plaintextToken: string }> {
+    ): Promise<{ entity: InvitationEntity; plaintextToken: string; invitationUrl: string }> {
         const plaintextToken = this.generatePlaintextToken();
         const tokenHash = this.hashToken(plaintextToken);
         const expiresAt = this.computeExpiryDate();
@@ -75,7 +76,7 @@ export class InvitationsService {
 
         this.logger.log(`Invitation issued: id=${entity.invitationId} purchaseId=${entity.purchaseId}`);
 
-        return { entity, plaintextToken };
+        return { entity, plaintextToken, invitationUrl: this.buildInvitationUrl(plaintextToken) };
     }
 
     /**

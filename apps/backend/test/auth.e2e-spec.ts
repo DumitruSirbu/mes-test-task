@@ -22,9 +22,11 @@ import { RolesGuard } from '../src/auth/guard/RolesGuard';
 import { ClsRequestModule } from '../src/common/cls/ClsRequestModule';
 import { HttpExceptionFilter } from '../src/common/filter/HttpExceptionFilter';
 import { LoggerModule } from '../src/common/logger/LoggerModule';
+import { DataSource } from 'typeorm';
 import { UsersRepository } from '../src/users/repository/UsersRepository';
 import { UsersService } from '../src/users/service/UsersService';
 import { UserEntity } from '../src/users/entity/UserEntity';
+import { RefreshTokensRepository } from '../src/auth/repository/RefreshTokensRepository';
 
 /**
  * Integration test: signup → login → /auth/me round trip + expired/invalid token paths.
@@ -81,6 +83,16 @@ class InMemoryUsersRepository {
     }
 }
 
+class StubDataSource {
+    public async transaction<T>(runInTransaction: (manager: import('typeorm').EntityManager) => Promise<T>): Promise<T> {
+        return runInTransaction({} as import('typeorm').EntityManager);
+    }
+}
+
+class StubRefreshTokensRepository {
+    public async insertNew(): Promise<void> {}
+}
+
 describe('Auth (e2e)', () => {
     let app: INestApplication<App>;
     let jwtService: JwtService;
@@ -115,6 +127,8 @@ describe('Auth (e2e)', () => {
                 JwtStrategy,
                 { provide: UsersRepository, useValue: repo },
                 { provide: UsersService, useValue: usersService },
+                { provide: RefreshTokensRepository, useClass: StubRefreshTokensRepository },
+                { provide: DataSource, useClass: StubDataSource },
                 { provide: APP_GUARD, useClass: JwtAuthGuard },
                 { provide: APP_GUARD, useClass: RolesGuard },
                 {
