@@ -30,7 +30,14 @@ import { AdminModule } from './admin/AdminModule';
 import { NotificationsModule } from './notifications/NotificationsModule';
 import { LessonEntity } from './lessons/entity/LessonEntity';
 import { CookieAwareThrottlerGuard } from './common/guard/CookieAwareThrottlerGuard';
-import { THROTTLE_DEFAULT_LIMIT, THROTTLE_WINDOW_MS, THROTTLER_DEFAULT_NAME, THROTTLE_REFRESH_LIMIT, THROTTLE_REFRESH_TTL_MS, THROTTLER_REFRESH_NAME } from './auth/const/AuthConsts';
+import {
+    THROTTLE_DEFAULT_LIMIT,
+    THROTTLE_WINDOW_MS,
+    THROTTLER_DEFAULT_NAME,
+    THROTTLE_REFRESH_LIMIT,
+    THROTTLE_REFRESH_TTL_MS,
+    THROTTLER_REFRESH_NAME,
+} from './auth/const/AuthConsts';
 import { RefreshTokenEntity } from './auth/entity/RefreshTokenEntity';
 
 /**

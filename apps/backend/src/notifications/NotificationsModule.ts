@@ -10,12 +10,7 @@ import { InvitationEntity } from '../invitations/entity/InvitationEntity';
 import { InvitationsRepository } from '../invitations/repository/InvitationsRepository';
 import { InvitationEmailProcessor } from './processor/InvitationEmailProcessor';
 import { BullBoardAuthMiddleware } from './middleware/BullBoardAuthMiddleware';
-import {
-    INVITATION_EMAIL_QUEUE,
-    BULL_BOARD_BASE_PATH,
-    REDIS_DEFAULT_HOST,
-    REDIS_DEFAULT_PORT,
-} from './const/NotificationsConsts';
+import { INVITATION_EMAIL_QUEUE, BULL_BOARD_BASE_PATH, REDIS_DEFAULT_HOST, REDIS_DEFAULT_PORT } from './const/NotificationsConsts';
 import { MAINTENANCE_QUEUE } from '../auth/const/MaintenanceConsts';
 
 /**
@@ -86,6 +81,7 @@ import { MAINTENANCE_QUEUE } from '../auth/const/MaintenanceConsts';
 export class NotificationsModule implements NestModule {
     // configure() is intentionally a no-op: Bull Board auth is handled via the
     // `middleware` option in BullBoardModule.forRoot (see architecture note 4).
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public configure(_consumer: MiddlewareConsumer): void {
         // no-op
     }

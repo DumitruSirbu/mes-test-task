@@ -136,7 +136,11 @@ describe('PurchasesService', () => {
         it('writes purchase + invitation + idempotency row inside the same transaction', async () => {
             findCourseMock.mockResolvedValue(buildCourse());
             insertPurchaseMock.mockResolvedValue(buildPurchase());
-            issueInvitationMock.mockResolvedValue({ entity: buildInvitation(), plaintextToken: 'plaintext-xyz', invitationUrl: 'https://mes.test/invite/plaintext-xyz' });
+            issueInvitationMock.mockResolvedValue({
+                entity: buildInvitation(),
+                plaintextToken: 'plaintext-xyz',
+                invitationUrl: 'https://mes.test/invite/plaintext-xyz',
+            });
             persistKeyMock.mockResolvedValue(undefined);
 
             const result = await service.createPurchase({
@@ -187,7 +191,11 @@ describe('PurchasesService', () => {
         it('rolls back when idempotency persistence fails (purchase + invitation not visible)', async () => {
             findCourseMock.mockResolvedValue(buildCourse());
             insertPurchaseMock.mockResolvedValue(buildPurchase());
-            issueInvitationMock.mockResolvedValue({ entity: buildInvitation(), plaintextToken: 'plaintext-xyz', invitationUrl: 'https://mes.test/invite/plaintext-xyz' });
+            issueInvitationMock.mockResolvedValue({
+                entity: buildInvitation(),
+                plaintextToken: 'plaintext-xyz',
+                invitationUrl: 'https://mes.test/invite/plaintext-xyz',
+            });
             persistKeyMock.mockRejectedValue(new Error('IDEMPOTENCY_BODY_MISMATCH'));
 
             await expect(
@@ -239,7 +247,11 @@ describe('PurchasesService', () => {
             findCourseMock.mockResolvedValue(buildCourse());
             // existsDuplicateMock returns false from beforeEach.
             insertPurchaseMock.mockResolvedValue(buildPurchase());
-            issueInvitationMock.mockResolvedValue({ entity: buildInvitation(), plaintextToken: 'plaintext-xyz', invitationUrl: 'https://mes.test/invite/plaintext-xyz' });
+            issueInvitationMock.mockResolvedValue({
+                entity: buildInvitation(),
+                plaintextToken: 'plaintext-xyz',
+                invitationUrl: 'https://mes.test/invite/plaintext-xyz',
+            });
             persistKeyMock.mockResolvedValue(undefined);
 
             await service.createPurchase({

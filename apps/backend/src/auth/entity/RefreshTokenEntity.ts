@@ -16,7 +16,7 @@ import { UserEntity } from '../../users/entity/UserEntity';
  */
 @Entity({ name: 'refresh_tokens', synchronize: false })
 export class RefreshTokenEntity {
-    // TODO(observability): if row count approaches Number.MAX_SAFE_INTEGER (~9e15), swap to bigint string with transformer.
+    // bigint PK: if row count ever approaches Number.MAX_SAFE_INTEGER (~9e15), swap to a bigint string with a TypeORM value transformer.
     @PrimaryGeneratedColumn({ name: 'id', type: 'bigint' })
     public id!: number;
 

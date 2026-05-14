@@ -3,8 +3,8 @@
  * Used by list endpoints to indicate total count and current page boundaries.
  */
 export interface IPaginated<T> {
-  data: T[];
-  total: number;
-  page: number;
-  limit: number;
+    data: T[];
+    total: number;
+    page: number;
+    limit: number;
 }

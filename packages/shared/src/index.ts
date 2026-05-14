@@ -2,6 +2,7 @@
 // Add new modules here as they are introduced by `mes-shared-maintainer`.
 
 export * from './const/AuthCookieConsts.js';
+export * from './const/ApiErrorCodes.js';
 export * from './enums/UserRoleEnum.js';
 export * from './enums/PurchaseStatusEnum.js';
 export * from './enums/InvitationStatusEnum.js';

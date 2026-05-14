@@ -1,8 +1,4 @@
-import {
-    INVITATION_EMAIL_ATTEMPTS,
-    INVITATION_EMAIL_BACKOFF_DELAY_MS,
-    INVITATION_EMAIL_BACKOFF_CAP_MS,
-} from '../NotificationsConsts';
+import { INVITATION_EMAIL_ATTEMPTS, INVITATION_EMAIL_BACKOFF_DELAY_MS, INVITATION_EMAIL_BACKOFF_CAP_MS } from '../NotificationsConsts';
 
 /**
  * Regression guard: verifies that the maximum backoff delay produced by the

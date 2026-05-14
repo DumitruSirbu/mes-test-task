@@ -2,12 +2,13 @@ import { Logger } from '@nestjs/common';
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { RefreshTokensRepository } from '../repository/RefreshTokensRepository';
-import { MAINTENANCE_QUEUE, REFRESH_TOKEN_CLEANUP_JOB } from '../const/MaintenanceConsts';
 import {
-    REFRESH_TOKEN_GRACE_DAYS,
-    REFRESH_TOKEN_FORENSIC_DAYS,
-    REFRESH_TOKEN_RETENTION_BREACH_DAYS,
-} from '../const/AuthConsts';
+    MAINTENANCE_QUEUE,
+    MAINTENANCE_WORKER_LOCK_DURATION_MS,
+    MAINTENANCE_WORKER_STALLED_INTERVAL_MS,
+    REFRESH_TOKEN_CLEANUP_JOB,
+} from '../const/MaintenanceConsts';
+import { REFRESH_TOKEN_GRACE_DAYS, REFRESH_TOKEN_FORENSIC_DAYS, REFRESH_TOKEN_RETENTION_BREACH_DAYS } from '../const/AuthConsts';
 
 /**
  * BullMQ processor for the `refresh-token-cleanup` job on the `maintenance` queue.
@@ -24,8 +25,8 @@ import {
  */
 @Processor(MAINTENANCE_QUEUE, {
     concurrency: 1,
-    lockDuration: 10 * 60 * 1000,
-    stalledInterval: 30_000,
+    lockDuration: MAINTENANCE_WORKER_LOCK_DURATION_MS,
+    stalledInterval: MAINTENANCE_WORKER_STALLED_INTERVAL_MS,
     maxStalledCount: 1,
 })
 export class RefreshTokenCleanupProcessor extends WorkerHost {
@@ -80,10 +81,7 @@ export class RefreshTokenCleanupProcessor extends WorkerHost {
 
     @OnWorkerEvent('completed')
     public onCompleted(job: Job): void {
-        this.logger.log(
-            { code: 'JOB_COMPLETED', jobId: job.id, queue: MAINTENANCE_QUEUE },
-            `Job ${job.id} (${job.name}) completed`,
-        );
+        this.logger.log({ code: 'JOB_COMPLETED', jobId: job.id, queue: MAINTENANCE_QUEUE }, `Job ${job.id} (${job.name}) completed`);
     }
 
     @OnWorkerEvent('failed')

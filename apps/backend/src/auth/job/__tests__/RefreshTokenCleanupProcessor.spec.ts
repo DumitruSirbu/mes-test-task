@@ -9,21 +9,13 @@
  *   - Unknown job names are skipped with a warn log.
  */
 
-import { Logger } from '@nestjs/common';
 import { RefreshTokenCleanupProcessor } from '../RefreshTokenCleanupProcessor';
 import { RefreshTokensRepository } from '../../repository/RefreshTokensRepository';
 import { REFRESH_TOKEN_CLEANUP_JOB } from '../../const/MaintenanceConsts';
-import {
-    REFRESH_TOKEN_GRACE_DAYS,
-    REFRESH_TOKEN_FORENSIC_DAYS,
-    REFRESH_TOKEN_RETENTION_BREACH_DAYS,
-} from '../../const/AuthConsts';
+import { REFRESH_TOKEN_GRACE_DAYS, REFRESH_TOKEN_FORENSIC_DAYS, REFRESH_TOKEN_RETENTION_BREACH_DAYS } from '../../const/AuthConsts';
 import type { Job } from 'bullmq';
 
-type RefreshTokensRepositoryMock = Pick<
-    RefreshTokensRepository,
-    'deleteExpiredAndStaleRevoked' | 'countPastForensicWindow'
->;
+type RefreshTokensRepositoryMock = Pick<RefreshTokensRepository, 'deleteExpiredAndStaleRevoked' | 'countPastForensicWindow'>;
 
 const buildJob = (name: string): Job =>
     ({
@@ -31,7 +23,7 @@ const buildJob = (name: string): Job =>
         id: 'job-1',
         opts: {},
         attemptsMade: 0,
-    } as unknown as Job);
+    }) as unknown as Job;
 
 describe('RefreshTokenCleanupProcessor', () => {
     let processor: RefreshTokenCleanupProcessor;
@@ -66,10 +58,7 @@ describe('RefreshTokenCleanupProcessor', () => {
     it('calls deleteExpiredAndStaleRevoked with the correct grace and forensic day constants', async () => {
         await processor.process(buildJob(REFRESH_TOKEN_CLEANUP_JOB));
 
-        expect(deleteExpiredAndStaleRevokedMock).toHaveBeenCalledWith(
-            REFRESH_TOKEN_GRACE_DAYS,
-            REFRESH_TOKEN_FORENSIC_DAYS,
-        );
+        expect(deleteExpiredAndStaleRevokedMock).toHaveBeenCalledWith(REFRESH_TOKEN_GRACE_DAYS, REFRESH_TOKEN_FORENSIC_DAYS);
     });
 
     it('logs REFRESH_TOKEN_CLEANUP_DONE with deletedExpired and deletedRevoked counts', async () => {
@@ -92,13 +81,14 @@ describe('RefreshTokenCleanupProcessor', () => {
 
         await processor.process(buildJob(REFRESH_TOKEN_CLEANUP_JOB));
 
-        expect(logSpy).toHaveBeenCalledWith(
-            expect.objectContaining({ deletedExpired: 0, deletedRevoked: 0 }),
-            expect.any(String),
-        );
+        expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ deletedExpired: 0, deletedRevoked: 0 }), expect.any(String));
         // errorSpy must NOT fire — no breach.
         const breachCalls = (errorSpy.mock.calls as Array<[unknown, ...unknown[]]>).filter(
-            (c) => typeof c[0] === 'object' && c[0] !== null && 'code' in (c[0] as Record<string, unknown>) && (c[0] as Record<string, unknown>)['code'] === 'REFRESH_TOKEN_RETENTION_BREACH',
+            (c) =>
+                typeof c[0] === 'object' &&
+                c[0] !== null &&
+                'code' in (c[0] as Record<string, unknown>) &&
+                (c[0] as Record<string, unknown>)['code'] === 'REFRESH_TOKEN_RETENTION_BREACH',
         );
         expect(breachCalls).toHaveLength(0);
     });
@@ -134,7 +124,11 @@ describe('RefreshTokenCleanupProcessor', () => {
         await processor.process(buildJob(REFRESH_TOKEN_CLEANUP_JOB));
 
         const breachCalls = (errorSpy.mock.calls as Array<[unknown, ...unknown[]]>).filter(
-            (c) => typeof c[0] === 'object' && c[0] !== null && 'code' in (c[0] as Record<string, unknown>) && (c[0] as Record<string, unknown>)['code'] === 'REFRESH_TOKEN_RETENTION_BREACH',
+            (c) =>
+                typeof c[0] === 'object' &&
+                c[0] !== null &&
+                'code' in (c[0] as Record<string, unknown>) &&
+                (c[0] as Record<string, unknown>)['code'] === 'REFRESH_TOKEN_RETENTION_BREACH',
         );
         expect(breachCalls).toHaveLength(0);
     });
@@ -147,9 +141,6 @@ describe('RefreshTokenCleanupProcessor', () => {
         await processor.process(buildJob('unknown-job-name'));
 
         expect(deleteExpiredAndStaleRevokedMock).not.toHaveBeenCalled();
-        expect(warnSpy).toHaveBeenCalledWith(
-            expect.objectContaining({ code: 'MAINTENANCE_JOB_UNKNOWN' }),
-            expect.any(String),
-        );
+        expect(warnSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'MAINTENANCE_JOB_UNKNOWN' }), expect.any(String));
     });
 });

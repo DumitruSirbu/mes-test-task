@@ -3,11 +3,9 @@ import type { IAuthenticatedUser, IAuthTokenResponse } from '@mes/shared';
 import { XHR_REQUESTED_WITH, XHR_REQUESTED_WITH_HEADER } from '@mes/shared';
 import { getBaseUrl } from '../api/apiClient';
 import { authStore } from './authStore';
+import { STALE_STORAGE_KEYS } from '../const/WebUiConsts';
 
 type BootState = 'pending' | 'ready';
-
-// Historical storage keys used before M10 — evict on boot to clean up stale values.
-const STALE_STORAGE_KEYS = ['mes.auth.v1'] as const;
 
 /**
  * Runs the silent-refresh + /auth/me boot sequence on app mount.

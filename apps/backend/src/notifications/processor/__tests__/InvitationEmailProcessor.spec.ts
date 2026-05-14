@@ -92,10 +92,7 @@ describe('InvitationEmailProcessor', () => {
             await processor.process(buildJob());
 
             expect(markEmailSentMock).not.toHaveBeenCalled();
-            expect(warnSpy).toHaveBeenCalledWith(
-                expect.objectContaining({ code: 'INVITATION_EMAIL_ALREADY_SENT' }),
-                expect.any(String),
-            );
+            expect(warnSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'INVITATION_EMAIL_ALREADY_SENT' }), expect.any(String));
         });
 
         it('logs the INVITATION_EMAIL_SENT code and the course title on a successful send', async () => {
@@ -118,9 +115,7 @@ describe('InvitationEmailProcessor', () => {
 
             await processor.process(buildJob());
 
-            const sentCall = (logSpy.mock.calls as [Record<string, unknown>, string][]).find(
-                ([meta]) => meta.code === 'INVITATION_EMAIL_SENT',
-            );
+            const sentCall = (logSpy.mock.calls as [Record<string, unknown>, string][]).find(([meta]) => meta.code === 'INVITATION_EMAIL_SENT');
             expect(sentCall).toBeDefined();
             expect(sentCall![0]).not.toHaveProperty('invitationUrl');
         });
@@ -133,10 +128,7 @@ describe('InvitationEmailProcessor', () => {
 
             await processor.process(buildJob());
 
-            expect(logSpy).toHaveBeenCalledWith(
-                expect.objectContaining({ code: 'INVITATION_EMAIL_SEND_LOST_RACE' }),
-                expect.any(String),
-            );
+            expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'INVITATION_EMAIL_SEND_LOST_RACE' }), expect.any(String));
         });
     });
 
@@ -168,10 +160,7 @@ describe('InvitationEmailProcessor', () => {
 
             await processor.process(buildJob());
 
-            expect(warnSpy).toHaveBeenCalledWith(
-                expect.objectContaining({ code: 'INVITATION_NOT_FOUND' }),
-                expect.any(String),
-            );
+            expect(warnSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'INVITATION_NOT_FOUND' }), expect.any(String));
             expect(markEmailSentMock).not.toHaveBeenCalled();
         });
     });

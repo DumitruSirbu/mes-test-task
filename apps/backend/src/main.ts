@@ -4,7 +4,13 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { ConfigurationError } from './common/error/ConfigurationError';
-import { TRUST_PROXY_MAX, TRUST_PROXY_MIN, REFRESH_CSRF_ALLOWED_ORIGINS_ENV, REFRESH_CSRF_ALLOWED_ORIGINS_FALLBACK } from './common/const/CommonConsts';
+import {
+    TRUST_PROXY_MAX,
+    TRUST_PROXY_MIN,
+    REFRESH_CSRF_ALLOWED_ORIGINS_ENV,
+    REFRESH_CSRF_ALLOWED_ORIGINS_FALLBACK,
+    DEFAULT_BACKEND_PORT,
+} from './common/const/CommonConsts';
 
 /**
  * Bootstrap. Highlights:
@@ -72,7 +78,7 @@ async function bootstrap(): Promise<void> {
         allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Idempotency-Key'],
     });
 
-    const port = Number(process.env.BACKEND_PORT ?? 3010);
+    const port = Number(process.env.BACKEND_PORT ?? DEFAULT_BACKEND_PORT);
     await app.listen(port);
 }
 

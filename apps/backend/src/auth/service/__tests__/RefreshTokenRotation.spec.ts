@@ -23,13 +23,7 @@ import { UsersService } from '../../../users/service/UsersService';
 import { RefreshTokensRepository } from '../../repository/RefreshTokensRepository';
 import { RefreshTokenError } from '../../../common/error/RefreshTokenError';
 import { UserEntity } from '../../../users/entity/UserEntity';
-import {
-    ARGON2_MEMORY_COST,
-    ARGON2_PARALLELISM,
-    ARGON2_TIME_COST,
-    REFRESH_REUSE_GRACE_SECONDS,
-} from '../../const/AuthConsts';
-import type { IRefreshTokenPair } from '../AuthService';
+import { ARGON2_MEMORY_COST, ARGON2_PARALLELISM, ARGON2_TIME_COST, REFRESH_REUSE_GRACE_SECONDS } from '../../const/AuthConsts';
 import type { ICreateUserInput } from '../../../users/interface/ICreateUserInput';
 
 type RefreshTokensRepositoryMock = Pick<
@@ -311,9 +305,7 @@ describe('AuthService — refresh-token rotation (M10)', () => {
             // Now simulate the retry: old token arrives as revoked, revokedAt = just now
             const revokedAt = new Date(Date.now() - 1_000); // 1s ago — within 10s grace
             const rawHash = service.hashToken(rawToken);
-            selectForUpdateMock.mockResolvedValue(
-                buildTokenRow({ tokenHash: rawHash, revokedAt, replacedById: 99 }),
-            );
+            selectForUpdateMock.mockResolvedValue(buildTokenRow({ tokenHash: rawHash, revokedAt, replacedById: 99 }));
 
             const graceResult = await service.refresh(rawToken, META);
 
@@ -326,9 +318,7 @@ describe('AuthService — refresh-token rotation (M10)', () => {
 
             const revokedAt = new Date(Date.now() - 1_000);
             const rawHash = service.hashToken(rawToken);
-            selectForUpdateMock.mockResolvedValue(
-                buildTokenRow({ tokenHash: rawHash, revokedAt, replacedById: 99 }),
-            );
+            selectForUpdateMock.mockResolvedValue(buildTokenRow({ tokenHash: rawHash, revokedAt, replacedById: 99 }));
 
             const graceResult = await service.refresh(rawToken, META);
 
@@ -341,9 +331,7 @@ describe('AuthService — refresh-token rotation (M10)', () => {
 
             const revokedAt = new Date(Date.now() - 1_000);
             const rawHash = service.hashToken(rawToken);
-            selectForUpdateMock.mockResolvedValue(
-                buildTokenRow({ tokenHash: rawHash, revokedAt, replacedById: 99 }),
-            );
+            selectForUpdateMock.mockResolvedValue(buildTokenRow({ tokenHash: rawHash, revokedAt, replacedById: 99 }));
 
             await service.refresh(rawToken, META);
 
@@ -358,15 +346,17 @@ describe('AuthService — refresh-token rotation (M10)', () => {
 
             const revokedAt = new Date(Date.now() - 1_000);
             const rawHash = service.hashToken(rawToken);
-            selectForUpdateMock.mockResolvedValue(
-                buildTokenRow({ tokenHash: rawHash, revokedAt, replacedById: 99 }),
-            );
+            selectForUpdateMock.mockResolvedValue(buildTokenRow({ tokenHash: rawHash, revokedAt, replacedById: 99 }));
 
             const warnSpy = jest.spyOn(service['logger'], 'warn');
             await service.refresh(rawToken, META);
 
             const reuseWarnCalls = (warnSpy.mock.calls as Array<[unknown, ...unknown[]]>).filter(
-                (call) => typeof call[0] === 'object' && call[0] !== null && 'code' in (call[0] as Record<string, unknown>) && (call[0] as Record<string, unknown>)['code'] === 'REFRESH_TOKEN_REUSED',
+                (call) =>
+                    typeof call[0] === 'object' &&
+                    call[0] !== null &&
+                    'code' in (call[0] as Record<string, unknown>) &&
+                    (call[0] as Record<string, unknown>)['code'] === 'REFRESH_TOKEN_REUSED',
             );
             expect(reuseWarnCalls).toHaveLength(0);
         });
@@ -376,9 +366,7 @@ describe('AuthService — refresh-token rotation (M10)', () => {
 
             const revokedAt = new Date(Date.now() - 1_000);
             const rawHash = service.hashToken(rawToken);
-            selectForUpdateMock.mockResolvedValue(
-                buildTokenRow({ tokenHash: rawHash, revokedAt, replacedById: 99, userAgent: META.userAgent }),
-            );
+            selectForUpdateMock.mockResolvedValue(buildTokenRow({ tokenHash: rawHash, revokedAt, replacedById: 99, userAgent: META.userAgent }));
 
             // Use a DIFFERENT user-agent — should be treated as theft.
             await expect(service.refresh(rawToken, DIFFERENT_UA_META)).rejects.toMatchObject({ code: 'REFRESH_TOKEN_REUSED' });
@@ -431,9 +419,7 @@ describe('AuthService — refresh-token rotation (M10)', () => {
         it('signup and login both produce a refreshToken with a raw string and a future expiresAt', async () => {
             // Signup path.
             findByEmailMock.mockResolvedValue(null);
-            insertUserMock.mockImplementation((input: ICreateUserInput) =>
-                Promise.resolve(buildUser({ ...input })),
-            );
+            insertUserMock.mockImplementation((input: ICreateUserInput) => Promise.resolve(buildUser({ ...input })));
 
             const signupResult = await service.signup({ email: 'a@b.test', password: 'password-abc-123' }, META);
 
@@ -457,9 +443,7 @@ describe('AuthService — refresh-token rotation (M10)', () => {
         it('signup and login both call insertNew with a 64-char hex token_hash', async () => {
             // Signup.
             findByEmailMock.mockResolvedValue(null);
-            insertUserMock.mockImplementation((input: ICreateUserInput) =>
-                Promise.resolve(buildUser({ ...input })),
-            );
+            insertUserMock.mockImplementation((input: ICreateUserInput) => Promise.resolve(buildUser({ ...input })));
             await service.signup({ email: 'c@d.test', password: 'password-abc-123' }, META);
 
             const signupInsertArgs = (insertNewMock.mock.calls[0] as [{ tokenHash: string }, unknown])[0];
@@ -480,15 +464,11 @@ describe('AuthService — refresh-token rotation (M10)', () => {
 
         it('signup and login refresh tokens carry a family_id (UUID)', async () => {
             findByEmailMock.mockResolvedValue(null);
-            insertUserMock.mockImplementation((input: ICreateUserInput) =>
-                Promise.resolve(buildUser({ ...input })),
-            );
+            insertUserMock.mockImplementation((input: ICreateUserInput) => Promise.resolve(buildUser({ ...input })));
             await service.signup({ email: 'e@f.test', password: 'password-abc-123' }, META);
 
             const signupInsertArgs = (insertNewMock.mock.calls[0] as [{ familyId: string }, unknown])[0];
-            expect(signupInsertArgs.familyId).toMatch(
-                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-            );
+            expect(signupInsertArgs.familyId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
         });
     });
 

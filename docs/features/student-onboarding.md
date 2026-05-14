@@ -291,6 +291,18 @@ export interface IAuthTokenResponse {
 
 **Total: 11 frontend unit tests passing.**
 
+## Trust boundary — existing-student redeem
+
+The `POST /invitations/redeem` endpoint is public (no JWT required). When a student onboards via a valid invitation, they are created as a new user and authenticated immediately. However, if the student email matches an existing user (a student trying to claim an invitation for a second course), the endpoint accepts the student's password as proof of identity and enrols them in the new course using a single transaction.
+
+This design defers gating to **future hardening**: the password is submitted on a public, unauthenticated endpoint. In production, you may want to:
+
+1. Gate the existing-student redeem branch behind a JWT match (require the student to already be logged in), or
+2. Gate at the proxy level (e.g., IP whitelist for returning students), or
+3. Add additional proof factors (e.g., a secret question, parent confirmation).
+
+See `README.md` → "Production hardening" → "API security" for discussion.
+
 ## What's deferred (carry-overs to M06)
 
 - **Argon2 timing oracle on failure paths** — password hash is computed before transaction (observable timing delta between user-not-found vs password-mismatch). Documented per ADR 0005; mitigation in M06 (constant-time dummy hash or pre-hashing at lookup boundary).
@@ -306,3 +318,4 @@ export interface IAuthTokenResponse {
 - [Auth & RBAC](../architecture/auth-and-rbac.md)
 - [ADR 0005 — HTTP status code oracle resistance](../architecture/adr/0005-http-status-code-strategy.md)
 - [Code conventions](../best-practices/code-conventions.md)
+- [README — Production hardening](../../README.md#production-hardening)

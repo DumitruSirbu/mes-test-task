@@ -39,7 +39,7 @@ import { PassportModule } from '@nestjs/passport';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { App } from 'supertest/types';
-import type { EntityManager, Repository } from 'typeorm';
+import type { EntityManager } from 'typeorm';
 import { DataSource } from 'typeorm';
 import { UserRoleEnum } from '@mes/shared';
 import { REFRESH_COOKIE_NAME, REFRESH_COOKIE_PATH, XHR_REQUESTED_WITH, XHR_REQUESTED_WITH_HEADER } from '@mes/shared';
@@ -138,18 +138,22 @@ class InMemoryRefreshTokensRepository {
         return Promise.resolve(null);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public async selectForUpdate(hash: string, _manager: EntityManager): Promise<RefreshTokenEntity | null> {
         return this.findByTokenHash(hash);
     }
 
-    public insertNew(values: {
-        userId: number;
-        familyId: string;
-        tokenHash: string;
-        expiresAt: Date;
-        userAgent: string | null;
-        ip: string | null;
-    }, _manager: EntityManager): Promise<RefreshTokenEntity> {
+    public insertNew(
+        values: {
+            userId: number;
+            familyId: string;
+            tokenHash: string;
+            expiresAt: Date;
+            userAgent: string | null;
+            ip: string | null;
+        },
+        _manager: EntityManager, // eslint-disable-line @typescript-eslint/no-unused-vars
+    ): Promise<RefreshTokenEntity> {
         const entity = new RefreshTokenEntity();
         entity.id = this.nextId++;
         entity.userId = values.userId;
@@ -166,6 +170,7 @@ class InMemoryRefreshTokensRepository {
         return Promise.resolve(entity);
     }
 
+    // eslint-disable-next-line @typescript-eslint/require-await, @typescript-eslint/no-unused-vars
     public async revokeRow(id: number, replacedById: number, _manager: EntityManager): Promise<number> {
         const row = this.rows.get(id);
 
@@ -179,6 +184,7 @@ class InMemoryRefreshTokensRepository {
         return 0;
     }
 
+    // eslint-disable-next-line @typescript-eslint/require-await, @typescript-eslint/no-unused-vars
     public async revokeRowForLogout(id: number, _manager: EntityManager): Promise<number> {
         const row = this.rows.get(id);
 
@@ -191,6 +197,7 @@ class InMemoryRefreshTokensRepository {
         return 0;
     }
 
+    // eslint-disable-next-line @typescript-eslint/require-await, @typescript-eslint/no-unused-vars
     public async revokeFamily(familyId: string, _manager?: EntityManager): Promise<number> {
         let count = 0;
 
@@ -204,6 +211,7 @@ class InMemoryRefreshTokensRepository {
         return count;
     }
 
+    // eslint-disable-next-line @typescript-eslint/require-await
     public async deleteExpiredAndStaleRevoked(graceDays: number, forensicDays: number): Promise<{ deletedExpired: number; deletedRevoked: number }> {
         const now = Date.now();
         const graceCutoff = new Date(now - graceDays * 86_400_000);
@@ -224,6 +232,7 @@ class InMemoryRefreshTokensRepository {
         return { deletedExpired, deletedRevoked };
     }
 
+    // eslint-disable-next-line @typescript-eslint/require-await
     public async countPastForensicWindow(thresholdDays: number): Promise<number> {
         const cutoff = new Date(Date.now() - thresholdDays * 86_400_000);
         let count = 0;
@@ -402,8 +411,7 @@ describe('Refresh Token Rotation — E2E (M10)', () => {
                 { provide: APP_GUARD, useClass: RolesGuard },
                 {
                     provide: APP_PIPE,
-                    useFactory: (): ValidationPipe =>
-                        new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+                    useFactory: (): ValidationPipe => new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
                 },
                 { provide: APP_FILTER, useClass: HttpExceptionFilter },
             ],
@@ -448,7 +456,6 @@ describe('Refresh Token Rotation — E2E (M10)', () => {
 
         return { accessToken, refreshCookieValue };
     };
-
 
     // Helper: call /auth/refresh with a given cookie value.
     const callRefresh = (cookieValue: string, userAgent = TEST_UA): request.Test => {
@@ -974,6 +981,7 @@ describe('Refresh Token Rotation — E2E (M10)', () => {
             const errorSpy = jest.spyOn(processor['logger'], 'error').mockImplementation(() => undefined);
             jest.spyOn(processor['logger'], 'warn').mockImplementation(() => undefined);
 
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { Job } = await import('bullmq');
             const jobStub = { name: 'refresh-token-cleanup', id: 'j1', opts: {}, attemptsMade: 0 } as unknown as InstanceType<typeof Job>;
             await processor.process(jobStub);

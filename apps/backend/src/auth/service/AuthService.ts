@@ -27,6 +27,7 @@ import {
     REFRESH_TOKEN_BYTES,
     REFRESH_TOKEN_TTL_DAYS,
     REFRESH_REUSE_GRACE_SECONDS,
+    SECONDS_PER_UNIT,
 } from '../const/AuthConsts';
 import { LoginDto } from '../dto/LoginDto';
 import { SignupDto } from '../dto/SignupDto';
@@ -46,6 +47,12 @@ export interface IRefreshTokenPair {
 export interface ILoginResult {
     accessToken: IAuthTokenResponse;
     refreshToken: IRefreshTokenPair;
+}
+
+interface IRotationPayload {
+    loginResult: ILoginResult;
+    newRaw: string;
+    newExpiresAt: Date;
 }
 
 interface IGraceCacheEntry {
@@ -204,14 +211,22 @@ export class AuthService implements OnModuleInit {
      */
     public async refresh(rawToken: string, meta: IRequestMeta): Promise<ILoginResult> {
         const hash = this.hashToken(rawToken);
+        const outcome = await this.executeRotationTransaction(hash, meta);
 
-        interface IRotationResult {
-            loginResult: ILoginResult;
-            newRaw: string;
-            newExpiresAt: Date;
+        // Grace-window cache is written ONLY after the transaction has committed
+        // successfully. Writing inside the callback would poison the cache if a
+        // later step throws and the DB rolls back, leaving a stale successor pointer.
+        if ('newRaw' in outcome) {
+            this.setGraceEntry(hash, outcome.newRaw, outcome.newExpiresAt);
+
+            return outcome.loginResult;
         }
 
-        const outcome = await this.dataSource.transaction(async (manager) => {
+        return outcome;
+    }
+
+    private async executeRotationTransaction(hash: string, meta: IRequestMeta): Promise<ILoginResult | IRotationPayload> {
+        return this.dataSource.transaction(async (manager) => {
             const row = await this.refreshTokensRepository.selectForUpdate(hash, manager);
 
             if (!row) {
@@ -228,59 +243,57 @@ export class AuthService implements OnModuleInit {
                 return this.handleRevokedToken(row, hash, meta, now, manager);
             }
 
-            // Happy path: generate new token, insert, revoke old.
-            const newExpiresAt = this.computeExpiresAt(REFRESH_TOKEN_TTL_DAYS);
-            const newRaw = this.generateRawToken();
-            const newHash = this.hashToken(newRaw);
+            return this.buildRotationPayload(row, meta, manager);
+        });
+    }
 
-            const newRow = await this.refreshTokensRepository.insertNew(
-                {
-                    userId: row.userId,
-                    familyId: row.familyId,
-                    tokenHash: newHash,
-                    expiresAt: newExpiresAt,
-                    userAgent: meta.userAgent,
-                    ip: meta.ip,
-                },
-                manager,
-            );
+    private async buildRotationPayload(
+        row: import('../entity/RefreshTokenEntity').RefreshTokenEntity,
+        meta: IRequestMeta,
+        manager: import('typeorm').EntityManager,
+    ): Promise<IRotationPayload> {
+        const newExpiresAt = this.computeExpiresAt(REFRESH_TOKEN_TTL_DAYS);
+        const newRaw = this.generateRawToken();
+        const newHash = this.hashToken(newRaw);
 
-            await this.refreshTokensRepository.revokeRow(row.id, newRow.id, manager);
+        const newRow = await this.refreshTokensRepository.insertNew(
+            {
+                userId: row.userId,
+                familyId: row.familyId,
+                tokenHash: newHash,
+                expiresAt: newExpiresAt,
+                userAgent: meta.userAgent,
+                ip: meta.ip,
+            },
+            manager,
+        );
 
-            const user = await this.usersService.findById(row.userId);
+        await this.refreshTokensRepository.revokeRow(row.id, newRow.id, manager);
 
-            if (!user) {
-                // User was deleted mid-rotation. Roll back the issued token by letting
-                // the transaction abort, then asynchronously revoke the family so no
-                // other active tokens for this deleted user can be replayed.
-                void this.refreshTokensRepository.revokeFamily(row.familyId).catch((err) =>
+        const user = await this.usersService.findById(row.userId);
+
+        if (!user) {
+            // User was deleted mid-rotation. Roll back the issued token by letting
+            // the transaction abort, then asynchronously revoke the family so no
+            // other active tokens for this deleted user can be replayed.
+            void this.refreshTokensRepository
+                .revokeFamily(row.familyId)
+                .catch((err) =>
                     this.logger.warn(
                         { code: 'REVOKE_FAMILY_AFTER_DELETED_USER', familyId: row.familyId, reason: (err as Error).message },
                         'Post-abort family revocation failed — tokens may linger until TTL',
                     ),
                 );
 
-                throw new RefreshTokenError('REFRESH_TOKEN_INVALID');
-            }
-
-            const loginResult: ILoginResult = {
-                accessToken: this.issueToken(user),
-                refreshToken: { raw: newRaw, expiresAt: newExpiresAt },
-            };
-
-            return { loginResult, newRaw, newExpiresAt } satisfies IRotationResult;
-        });
-
-        // Grace-window cache is written ONLY after the transaction has committed
-        // successfully. Writing inside the callback would poison the cache if a
-        // later step throws and the DB rolls back, leaving a stale successor pointer.
-        if ('newRaw' in outcome) {
-            this.setGraceEntry(hash, outcome.newRaw, outcome.newExpiresAt);
-
-            return outcome.loginResult;
+            throw new RefreshTokenError('REFRESH_TOKEN_INVALID');
         }
 
-        return outcome;
+        const loginResult: ILoginResult = {
+            accessToken: this.issueToken(user),
+            refreshToken: { raw: newRaw, expiresAt: newExpiresAt },
+        };
+
+        return { loginResult, newRaw, newExpiresAt };
     }
 
     /**
@@ -515,10 +528,8 @@ export class AuthService implements OnModuleInit {
 
         const value = Number(match[1]);
         const unit = match[2];
-        const unitToSeconds: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 };
-        const seconds = value * unitToSeconds[unit];
+        const seconds = value * SECONDS_PER_UNIT[unit];
 
         return seconds;
     }
 }
-

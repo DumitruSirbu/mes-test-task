@@ -47,13 +47,11 @@ Specialist agents are defined in `.claude/agents/` (also accessible via `.agents
 - **Work log** → `docs/work-log.md`
 - **AI usage artefacts** → `docs/ai-usage/`
 
-## Current milestone
+## Project status
 
-→ M09 closed. M10 — QA & polish is the outstanding milestone.
+**All milestones M01–M10 are closed.** The project is delivery-ready.
 
-(M01–M08, M09 all done: Foundation, Architecture & ADRs, Backend Auth/RBAC/Logging, Purchase & Invitation, Student Onboarding & Activation, LMS Dashboard, Admin Panel, Async Jobs / BullMQ, Refresh Token Rotation.)
-
-(The scribe keeps this pointer current.)
+(M01: Foundation & scaffold. M02: Architecture & ADRs. M03: Backend Auth/RBAC/Logging. M04: Purchase & Invitation. M05: Student Onboarding & Activation. M06: LMS Dashboard. M07: Admin Panel. M08: Async Jobs / BullMQ. M09: Refresh Token Rotation. M10: QA & Polish — 279/279 tests pass, docker healthy, docs complete.)
 
 ## Plan of record
 

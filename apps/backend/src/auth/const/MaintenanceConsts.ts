@@ -40,3 +40,15 @@ export const MAINTENANCE_REMOVE_ON_FAIL_AGE_SECONDS = 7 * 86_400;
  * history, even within the age window. Acts as a hard cap on list growth.
  */
 export const MAINTENANCE_RETAIN_COUNT = 100;
+
+/**
+ * BullMQ worker `lockDuration` for the maintenance processor, in milliseconds.
+ * 10 minutes accommodates the full delete + assertion cycle even on large tables.
+ */
+export const MAINTENANCE_WORKER_LOCK_DURATION_MS = 10 * 60 * 1_000;
+
+/**
+ * BullMQ worker `stalledInterval` for the maintenance processor, in milliseconds.
+ * 30 seconds: how often BullMQ checks for stalled jobs.
+ */
+export const MAINTENANCE_WORKER_STALLED_INTERVAL_MS = 30_000;

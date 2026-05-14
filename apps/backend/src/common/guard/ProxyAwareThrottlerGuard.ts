@@ -14,6 +14,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
  */
 @Injectable()
 export class ProxyAwareThrottlerGuard extends ThrottlerGuard {
+    // eslint-disable-next-line @typescript-eslint/require-await
     protected override async getTracker(req: Record<string, unknown>): Promise<string> {
         const user = req['user'] as { id?: number } | undefined;
 

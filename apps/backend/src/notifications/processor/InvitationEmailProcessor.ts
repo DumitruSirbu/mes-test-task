@@ -3,7 +3,7 @@ import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { InvitationsRepository } from '../../invitations/repository/InvitationsRepository';
 import { IInvitationEmailJob } from '../interface/IInvitationEmailJob';
-import { INVITATION_EMAIL_QUEUE } from '../const/NotificationsConsts';
+import { INVITATION_EMAIL_QUEUE, INVITATION_EMAIL_WORKER_LOCK_DURATION_MS, INVITATION_EMAIL_WORKER_STALLED_INTERVAL_MS } from '../const/NotificationsConsts';
 
 /**
  * BullMQ processor for `invitation-email` queue.
@@ -22,8 +22,8 @@ import { INVITATION_EMAIL_QUEUE } from '../const/NotificationsConsts';
  */
 @Processor(INVITATION_EMAIL_QUEUE, {
     concurrency: 2,
-    lockDuration: 30_000,
-    stalledInterval: 30_000,
+    lockDuration: INVITATION_EMAIL_WORKER_LOCK_DURATION_MS,
+    stalledInterval: INVITATION_EMAIL_WORKER_STALLED_INTERVAL_MS,
     maxStalledCount: 1,
 })
 export class InvitationEmailProcessor extends WorkerHost {

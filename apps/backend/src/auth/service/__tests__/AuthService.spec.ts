@@ -18,7 +18,10 @@ import { IAuthUserProfile } from '../../interface/IAuthUserProfile';
 type UsersRepositoryMock = Pick<UsersRepository, 'findByEmail' | 'findById' | 'insertUser' | 'updatePasswordHash'>;
 type UsersServiceMock = Pick<UsersService, 'findById' | 'findByEmail' | 'updatePasswordHash'>;
 type JwtServiceMock = Pick<JwtService, 'sign'>;
-type RefreshTokensRepositoryMock = Pick<RefreshTokensRepository, 'insertNew' | 'findByTokenHash' | 'selectForUpdate' | 'revokeRow' | 'revokeRowForLogout' | 'revokeFamily'>;
+type RefreshTokensRepositoryMock = Pick<
+    RefreshTokensRepository,
+    'insertNew' | 'findByTokenHash' | 'selectForUpdate' | 'revokeRow' | 'revokeRowForLogout' | 'revokeFamily'
+>;
 
 const META = { userAgent: 'jest-test-agent', ip: '127.0.0.1' };
 
@@ -64,7 +67,20 @@ describe('AuthService', () => {
         return Object.assign(entity, overrides ?? {});
     };
 
-    const buildRefreshToken = (overrides?: Partial<{ id: number; tokenHash: string; expiresAt: Date; revokedAt: Date | null; replacedById: number | null; familyId: string; userId: number; userAgent: string | null; ip: string | null; issuedAt: Date }>) => {
+    const buildRefreshToken = (
+        overrides?: Partial<{
+            id: number;
+            tokenHash: string;
+            expiresAt: Date;
+            revokedAt: Date | null;
+            replacedById: number | null;
+            familyId: string;
+            userId: number;
+            userAgent: string | null;
+            ip: string | null;
+            issuedAt: Date;
+        }>,
+    ) => {
         const base = {
             id: 10,
             tokenHash: 'a'.repeat(64),

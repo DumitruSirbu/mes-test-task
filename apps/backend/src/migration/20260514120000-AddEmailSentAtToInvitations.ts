@@ -21,9 +21,9 @@ export class AddEmailSentAtToInvitations20260514120000 implements MigrationInter
         `);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public async down(_queryRunner: QueryRunner): Promise<void> {
         // Intentional no-op: the column is owned by CreateInvitationsTable.
         // Dropping it here would conflict with that migration's down() path.
-        return;
     }
 }

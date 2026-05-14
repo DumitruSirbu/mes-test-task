@@ -187,8 +187,7 @@ describe('Admin (e2e)', () => {
 
     const TEST_JWT_SECRET = 'test-secret-must-be-at-least-32-characters-long-xxxxxx';
 
-    const signToken = (userId: number, role: UserRoleEnum): string =>
-        jwtService.sign({ sub: userId, role }, { expiresIn: '15m' });
+    const signToken = (userId: number, role: UserRoleEnum): string => jwtService.sign({ sub: userId, role }, { expiresIn: '15m' });
 
     beforeAll(async () => {
         process.env.JWT_SECRET = TEST_JWT_SECRET;
@@ -239,8 +238,7 @@ describe('Admin (e2e)', () => {
                 { provide: APP_GUARD, useClass: RolesGuard },
                 {
                     provide: APP_PIPE,
-                    useFactory: (): ValidationPipe =>
-                        new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+                    useFactory: (): ValidationPipe => new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
                 },
                 { provide: APP_FILTER, useClass: HttpExceptionFilter },
             ],
@@ -258,10 +256,7 @@ describe('Admin (e2e)', () => {
     describe('GET /admin/parents', () => {
         it('ADMIN receives paginated parent list', async () => {
             const token = signToken(3, UserRoleEnum.ADMIN);
-            const res = await request(app.getHttpServer())
-                .get('/admin/parents')
-                .set('Authorization', `Bearer ${token}`)
-                .expect(200);
+            const res = await request(app.getHttpServer()).get('/admin/parents').set('Authorization', `Bearer ${token}`).expect(200);
             const body = res.body as IPaginated<IAdminParentRow>;
             expect(body.total).toBeGreaterThanOrEqual(1);
             expect(body.page).toBe(1);
@@ -272,10 +267,7 @@ describe('Admin (e2e)', () => {
 
         it('applies default pagination when page and limit are omitted', async () => {
             const token = signToken(3, UserRoleEnum.ADMIN);
-            const res = await request(app.getHttpServer())
-                .get('/admin/parents')
-                .set('Authorization', `Bearer ${token}`)
-                .expect(200);
+            const res = await request(app.getHttpServer()).get('/admin/parents').set('Authorization', `Bearer ${token}`).expect(200);
             const body = res.body as IPaginated<IAdminParentRow>;
             expect(body.page).toBe(1);
             expect(body.limit).toBe(20);
@@ -288,28 +280,19 @@ describe('Admin (e2e)', () => {
 
         it('rejects PARENT role with 403 AUTH_FORBIDDEN_ROLE', async () => {
             const token = signToken(1, UserRoleEnum.PARENT);
-            const res = await request(app.getHttpServer())
-                .get('/admin/parents')
-                .set('Authorization', `Bearer ${token}`)
-                .expect(403);
+            const res = await request(app.getHttpServer()).get('/admin/parents').set('Authorization', `Bearer ${token}`).expect(403);
             expect((res.body as IApiErrorResponse).code).toBe('AUTH_FORBIDDEN_ROLE');
         });
 
         it('rejects invalid pagination: page=0 → 400 VALIDATION_FAILED', async () => {
             const token = signToken(3, UserRoleEnum.ADMIN);
-            const res = await request(app.getHttpServer())
-                .get('/admin/parents?page=0')
-                .set('Authorization', `Bearer ${token}`)
-                .expect(400);
+            const res = await request(app.getHttpServer()).get('/admin/parents?page=0').set('Authorization', `Bearer ${token}`).expect(400);
             expect((res.body as IApiErrorResponse).code).toBe('VALIDATION_FAILED');
         });
 
         it('rejects invalid pagination: limit=200 exceeds MAX_PAGE_LIMIT → 400 VALIDATION_FAILED', async () => {
             const token = signToken(3, UserRoleEnum.ADMIN);
-            const res = await request(app.getHttpServer())
-                .get('/admin/parents?limit=200')
-                .set('Authorization', `Bearer ${token}`)
-                .expect(400);
+            const res = await request(app.getHttpServer()).get('/admin/parents?limit=200').set('Authorization', `Bearer ${token}`).expect(400);
             expect((res.body as IApiErrorResponse).code).toBe('VALIDATION_FAILED');
         });
     });
@@ -317,10 +300,7 @@ describe('Admin (e2e)', () => {
     describe('GET /admin/students', () => {
         it('ADMIN receives paginated student list', async () => {
             const token = signToken(3, UserRoleEnum.ADMIN);
-            const res = await request(app.getHttpServer())
-                .get('/admin/students')
-                .set('Authorization', `Bearer ${token}`)
-                .expect(200);
+            const res = await request(app.getHttpServer()).get('/admin/students').set('Authorization', `Bearer ${token}`).expect(200);
             const body = res.body as IPaginated<{ email: string }>;
             expect(body.total).toBeGreaterThanOrEqual(1);
             expect(body.data[0]).toMatchObject({ email: 'student@mes.test' });
@@ -328,10 +308,7 @@ describe('Admin (e2e)', () => {
 
         it('rejects PARENT role with 403', async () => {
             const token = signToken(1, UserRoleEnum.PARENT);
-            const res = await request(app.getHttpServer())
-                .get('/admin/students')
-                .set('Authorization', `Bearer ${token}`)
-                .expect(403);
+            const res = await request(app.getHttpServer()).get('/admin/students').set('Authorization', `Bearer ${token}`).expect(403);
             expect((res.body as IApiErrorResponse).code).toBe('AUTH_FORBIDDEN_ROLE');
         });
 
@@ -344,10 +321,7 @@ describe('Admin (e2e)', () => {
     describe('GET /admin/purchases', () => {
         it('ADMIN receives paginated purchase list', async () => {
             const token = signToken(3, UserRoleEnum.ADMIN);
-            const res = await request(app.getHttpServer())
-                .get('/admin/purchases')
-                .set('Authorization', `Bearer ${token}`)
-                .expect(200);
+            const res = await request(app.getHttpServer()).get('/admin/purchases').set('Authorization', `Bearer ${token}`).expect(200);
             const body = res.body as IPaginated<{ id: number; status: string }>;
             expect(body.total).toBeGreaterThanOrEqual(1);
             expect(body.data[0].status).toBe(PurchaseStatusEnum.COMPLETED);
@@ -355,10 +329,7 @@ describe('Admin (e2e)', () => {
 
         it('rejects PARENT role with 403', async () => {
             const token = signToken(1, UserRoleEnum.PARENT);
-            const res = await request(app.getHttpServer())
-                .get('/admin/purchases')
-                .set('Authorization', `Bearer ${token}`)
-                .expect(403);
+            const res = await request(app.getHttpServer()).get('/admin/purchases').set('Authorization', `Bearer ${token}`).expect(403);
             expect((res.body as IApiErrorResponse).code).toBe('AUTH_FORBIDDEN_ROLE');
         });
 
@@ -371,10 +342,7 @@ describe('Admin (e2e)', () => {
     describe('GET /admin/courses', () => {
         it('ADMIN receives paginated course list', async () => {
             const token = signToken(3, UserRoleEnum.ADMIN);
-            const res = await request(app.getHttpServer())
-                .get('/admin/courses')
-                .set('Authorization', `Bearer ${token}`)
-                .expect(200);
+            const res = await request(app.getHttpServer()).get('/admin/courses').set('Authorization', `Bearer ${token}`).expect(200);
             const body = res.body as IPaginated<{ title: string }>;
             expect(body.total).toBeGreaterThanOrEqual(1);
             expect(body.data[0].title).toBe('Maths Year 7');
@@ -382,10 +350,7 @@ describe('Admin (e2e)', () => {
 
         it('rejects PARENT role with 403', async () => {
             const token = signToken(1, UserRoleEnum.PARENT);
-            const res = await request(app.getHttpServer())
-                .get('/admin/courses')
-                .set('Authorization', `Bearer ${token}`)
-                .expect(403);
+            const res = await request(app.getHttpServer()).get('/admin/courses').set('Authorization', `Bearer ${token}`).expect(403);
             expect((res.body as IApiErrorResponse).code).toBe('AUTH_FORBIDDEN_ROLE');
         });
 

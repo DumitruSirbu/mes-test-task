@@ -78,19 +78,11 @@ import { assertJwtConfig } from './util/assertJwtConfig';
         }),
     ],
     controllers: [AuthController],
-    providers: [
-        AuthService,
-        JwtStrategy,
-        RefreshTokensRepository,
-        RefreshTokenCleanupProcessor,
-        OriginAllowedGuard,
-    ],
+    providers: [AuthService, JwtStrategy, RefreshTokensRepository, RefreshTokenCleanupProcessor, OriginAllowedGuard],
     exports: [AuthService, JwtModule],
 })
 export class AuthModule implements OnModuleInit {
-    public constructor(
-        @InjectQueue(MAINTENANCE_QUEUE) private readonly maintenanceQueue: Queue,
-    ) {}
+    public constructor(@InjectQueue(MAINTENANCE_QUEUE) private readonly maintenanceQueue: Queue) {}
 
     /**
      * Register the refresh-token-cleanup repeatable job on module init.

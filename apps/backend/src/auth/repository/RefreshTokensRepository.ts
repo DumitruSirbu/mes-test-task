@@ -37,9 +37,7 @@ export class RefreshTokensRepository extends BaseRepository<RefreshTokenEntity> 
 
     /** Fetch a row by its SHA-256 hash. Returns `null` when not found. */
     public async findByTokenHash(hash: string, manager?: EntityManager): Promise<RefreshTokenEntity | null> {
-        const qb = manager
-            ? manager.getRepository(RefreshTokenEntity).createQueryBuilder('rt')
-            : this.repository.createQueryBuilder('rt');
+        const qb = manager ? manager.getRepository(RefreshTokenEntity).createQueryBuilder('rt') : this.repository.createQueryBuilder('rt');
 
         return qb.where('rt.token_hash = :hash', { hash }).getOne();
     }
@@ -114,9 +112,7 @@ export class RefreshTokensRepository extends BaseRepository<RefreshTokenEntity> 
      * Returns the number of rows affected.
      */
     public async revokeFamily(familyId: string, manager?: EntityManager): Promise<number> {
-        const qb = manager
-            ? manager.getRepository(RefreshTokenEntity).createQueryBuilder()
-            : this.repository.createQueryBuilder();
+        const qb = manager ? manager.getRepository(RefreshTokenEntity).createQueryBuilder() : this.repository.createQueryBuilder();
 
         const result = await qb
             .update(RefreshTokenEntity)
@@ -174,9 +170,6 @@ export class RefreshTokensRepository extends BaseRepository<RefreshTokenEntity> 
      * is ever wired to an env var rather than a compile-time constant.
      */
     public async countPastForensicWindow(thresholdDays: number): Promise<number> {
-        return this.repository
-            .createQueryBuilder('rt')
-            .where('rt.revoked_at < NOW() - make_interval(days => :thresholdDays)', { thresholdDays })
-            .getCount();
+        return this.repository.createQueryBuilder('rt').where('rt.revoked_at < NOW() - make_interval(days => :thresholdDays)', { thresholdDays }).getCount();
     }
 }

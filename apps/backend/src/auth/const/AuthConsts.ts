@@ -145,3 +145,15 @@ export const THROTTLER_REFRESH_NAME = 'refresh';
  * `24 * 60 * 60 * 1_000` throughout the service.
  */
 export const MS_PER_DAY = 24 * 60 * 60 * 1_000;
+
+/**
+ * Conversion factors from a time-unit character suffix (s/m/h/d) to seconds.
+ * Used by `toExpiresInSeconds` to parse JWT_EXPIRES_IN strings like '15m', '1h', '1d'.
+ * Keyed by the single-character suffix accepted by the jsonwebtoken `ms` library.
+ */
+export const SECONDS_PER_UNIT: Readonly<Record<string, number>> = {
+    s: 1,
+    m: 60,
+    h: 3600,
+    d: 86400,
+};

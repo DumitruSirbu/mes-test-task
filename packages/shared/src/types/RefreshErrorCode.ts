@@ -12,11 +12,11 @@
  * not type aliases. This is a string-union type.
  */
 export type RefreshErrorCode =
-    | 'REFRESH_TOKEN_MISSING'    // No refresh token found in the cookie jar
-    | 'REFRESH_TOKEN_INVALID'    // Token hash does not match any row in refresh_tokens table
-    | 'REFRESH_TOKEN_EXPIRED'    // Token's expires_at is in the past
-    | 'REFRESH_TOKEN_REUSED'     // Token was already used and family must be revoked (replay attack detected)
-    | 'REFRESH_CSRF_REJECTED';   // Origin/Referer guard rejected the request or X-Requested-With header missing
+    | 'REFRESH_TOKEN_MISSING' // No refresh token found in the cookie jar
+    | 'REFRESH_TOKEN_INVALID' // Token hash does not match any row in refresh_tokens table
+    | 'REFRESH_TOKEN_EXPIRED' // Token's expires_at is in the past
+    | 'REFRESH_TOKEN_REUSED' // Token was already used and family must be revoked (replay attack detected)
+    | 'REFRESH_CSRF_REJECTED'; // Origin/Referer guard rejected the request or X-Requested-With header missing
 
 /**
  * @deprecated Use `RefreshErrorCode` instead. Kept for backward compatibility during migration.

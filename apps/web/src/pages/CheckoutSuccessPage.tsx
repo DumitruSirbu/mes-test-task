@@ -1,7 +1,6 @@
 import { useState, type ReactElement } from 'react';
 import type { IPurchaseResponse } from '@mes/shared';
-
-const LAST_PURCHASE_STORAGE_KEY = 'mes.lastPurchase.v1';
+import { LAST_PURCHASE_STORAGE_KEY } from '../const/WebUiConsts';
 
 const readPurchaseFromSession = (): IPurchaseResponse | null => {
     const raw = sessionStorage.getItem(LAST_PURCHASE_STORAGE_KEY);

@@ -19,7 +19,10 @@ export const redeemInvitationSchema = z
         token: z.string().min(1),
         firstName: z.string().trim().min(1).max(80).optional(),
         lastName: z.string().trim().min(1).max(80).optional(),
-        dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        dateOfBirth: z
+            .string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/)
+            .optional(),
         password: z
             .string()
             .min(8)

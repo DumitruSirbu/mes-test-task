@@ -15,6 +15,7 @@ import { IdempotencyService } from '../../common/idempotency/service/Idempotency
 import { CreatePurchaseDto } from '../dto/CreatePurchaseDto';
 import { PURCHASE_CREATED_STATUS, PURCHASE_ENDPOINT_SIGNATURE } from '../const/PurchasesConsts';
 import { DuplicatePurchaseForStudentError } from '../../common/error/DuplicatePurchaseForStudentError';
+import { DataIntegrityError } from '../../common/error/DataIntegrityError';
 import {
     INVITATION_EMAIL_QUEUE,
     INVITATION_EMAIL_JOB_NAME,
@@ -120,7 +121,9 @@ export class PurchasesService {
 
             if (!course || !invitation) {
                 // Should be unreachable: FKs guarantee both. Throw to make a broken invariant loud.
-                throw new Error(`Purchase ${purchase.purchaseId} is missing course or invitation row — DB invariant broken.`);
+                throw new DataIntegrityError(`Purchase ${purchase.purchaseId} is missing course or invitation row — DB invariant broken.`, {
+                    purchaseId: purchase.purchaseId,
+                });
             }
 
             return this.composeListResponse(purchase, course, invitation);
@@ -255,13 +258,8 @@ export class PurchasesService {
     }
 
     private async coursesByIds(courseIds: number[]): Promise<Map<number, CourseEntity>> {
-        const map = new Map<number, CourseEntity>();
+        const courses = await Promise.all(courseIds.map((id) => this.coursesService.findByIdOrThrow(id)));
 
-        for (const courseId of courseIds) {
-            const course = await this.coursesService.findByIdOrThrow(courseId);
-            map.set(courseId, course);
-        }
-
-        return map;
+        return new Map(courses.map((course) => [course.courseId, course]));
     }
 }

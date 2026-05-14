@@ -18,3 +18,4 @@ export * from './PurchaseNotFoundError';
 export * from './NotEnrolledError';
 export * from './LessonNotFoundError';
 export * from './RefreshTokenError';
+export * from './DataIntegrityError';

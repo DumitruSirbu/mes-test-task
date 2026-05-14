@@ -56,10 +56,7 @@ export const REFRESH_CSRF_ALLOWED_ORIGINS_ENV = 'CORS_ALLOWED_ORIGINS';
  * Dev-mode fallback allow-list used when `CORS_ALLOWED_ORIGINS` is unset.
  * Never used in production (non-empty env var is required there).
  */
-export const REFRESH_CSRF_ALLOWED_ORIGINS_FALLBACK: readonly string[] = [
-    'http://localhost:5173',
-    'http://localhost:5174',
-];
+export const REFRESH_CSRF_ALLOWED_ORIGINS_FALLBACK: readonly string[] = ['http://localhost:5173', 'http://localhost:5174'];
 
 /**
  * `NODE_ENV` value for production deployments.
@@ -67,3 +64,9 @@ export const REFRESH_CSRF_ALLOWED_ORIGINS_FALLBACK: readonly string[] = [
  * string `'production'` in business logic.
  */
 export const NODE_ENV_PRODUCTION = 'production';
+
+/**
+ * Default HTTP port for the NestJS backend when `BACKEND_PORT` env var is absent.
+ * Used in `main.ts` bootstrap to avoid an inline magic number.
+ */
+export const DEFAULT_BACKEND_PORT = 3010;

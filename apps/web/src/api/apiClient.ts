@@ -1,5 +1,5 @@
 import type { IApiErrorResponse, IAuthTokenResponse } from '@mes/shared';
-import { XHR_REQUESTED_WITH, XHR_REQUESTED_WITH_HEADER } from '@mes/shared';
+import { XHR_REQUESTED_WITH, XHR_REQUESTED_WITH_HEADER, ApiErrorCodes } from '@mes/shared';
 import { DEFAULT_API_BASE_URL } from '../const/WebUiConsts';
 import { authStore } from '../auth/authStore';
 import { navigate } from '../router/router';
@@ -172,7 +172,7 @@ export const apiRequest = async <TResponse>(path: string, options: IApiRequestOp
         const errorBody = buildErrorBody(response.status, parsed);
 
         if (response.status === 401) {
-            if (errorBody.code !== 'AUTH_TOKEN_EXPIRED') {
+            if (errorBody.code !== ApiErrorCodes.AUTH_TOKEN_EXPIRED) {
                 // Non-expiry 401 codes are not retryable — drop and redirect immediately.
                 dropTokenAndRedirect();
                 throw new ApiError(response.status, errorBody);
@@ -186,7 +186,7 @@ export const apiRequest = async <TResponse>(path: string, options: IApiRequestOp
                 if (authStore.getIsLoggingOut()) {
                     throw new ApiError(401, {
                         message: 'Auth store cleared during refresh',
-                        code: 'AUTH_TOKEN_EXPIRED',
+                        code: ApiErrorCodes.AUTH_TOKEN_EXPIRED,
                         requestId: '',
                     });
                 }

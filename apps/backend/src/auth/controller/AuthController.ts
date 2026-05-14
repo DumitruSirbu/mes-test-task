@@ -43,11 +43,7 @@ export class AuthController {
     @Public()
     @Post('signup')
     @HttpCode(HttpStatus.CREATED)
-    public async signup(
-        @Body() body: SignupDto,
-        @Req() req: Request,
-        @Res({ passthrough: true }) res: Response,
-    ): Promise<IAuthTokenResponse> {
+    public async signup(@Body() body: SignupDto, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<IAuthTokenResponse> {
         const meta = this.extractRequestMeta(req);
         const { accessToken, refreshToken } = await this.authService.signup(body, meta);
 
@@ -60,11 +56,7 @@ export class AuthController {
     @Throttle({ [THROTTLER_DEFAULT_NAME]: { limit: THROTTLE_LOGIN_LIMIT, ttl: THROTTLE_WINDOW_MS } })
     @Post('login')
     @HttpCode(HttpStatus.OK)
-    public async login(
-        @Body() body: LoginDto,
-        @Req() req: Request,
-        @Res({ passthrough: true }) res: Response,
-    ): Promise<IAuthTokenResponse> {
+    public async login(@Body() body: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<IAuthTokenResponse> {
         const meta = this.extractRequestMeta(req);
         const { accessToken, refreshToken } = await this.authService.login(body, meta);
 
@@ -96,6 +88,7 @@ export class AuthController {
     @Post('refresh')
     @HttpCode(HttpStatus.OK)
     public async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<IAuthTokenResponse> {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const rawCookieValue = req.cookies[REFRESH_COOKIE_NAME];
         const rawToken = typeof rawCookieValue === 'string' ? rawCookieValue : undefined;
 
@@ -122,6 +115,7 @@ export class AuthController {
     @Post('logout')
     @HttpCode(HttpStatus.OK)
     public async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const rawCookieValue = req.cookies[REFRESH_COOKIE_NAME];
 
         // Item 5: guard against duplicate-cookie array coercion (idempotent no-op for invalid input).

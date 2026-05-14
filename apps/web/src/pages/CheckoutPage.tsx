@@ -12,12 +12,11 @@ import {
     PURCHASE_ALREADY_EXISTS_FOR_STUDENT_CODE,
     type ICheckoutFlash,
 } from '../util/checkoutFlash';
+import { LAST_PURCHASE_STORAGE_KEY } from '../const/WebUiConsts';
 
 interface IProps {
     courseId: string;
 }
-
-const LAST_PURCHASE_STORAGE_KEY = 'mes.lastPurchase.v1';
 
 /**
  * Checkout form for a single course.

@@ -240,7 +240,9 @@ class StubDataSource {
 // The processor uses InvitationsRepository directly, bypassing InvitationsService.
 // ---------------------------------------------------------------------------
 
-function buildStubInvitationsService(invitationsRepo: InMemoryInvitationsRepository): Pick<InvitationsService, 'issueWithinTransaction' | 'toResponseWithPlaintext'> {
+function buildStubInvitationsService(
+    invitationsRepo: InMemoryInvitationsRepository,
+): Pick<InvitationsService, 'issueWithinTransaction' | 'toResponseWithPlaintext'> {
     const INVITATION_BASE_URL = 'https://mes.test/invite';
 
     const buildUrl = (plaintextToken: string): string => `${INVITATION_BASE_URL}/${encodeURIComponent(plaintextToken)}`;
@@ -412,10 +414,7 @@ describe('Notifications — purchase → enqueue → process pipeline', () => {
 
         await processor.process(job);
 
-        expect(logSpy).toHaveBeenCalledWith(
-            expect.objectContaining({ code: 'INVITATION_EMAIL_SENT' }),
-            expect.stringContaining('[invitation.email.send]'),
-        );
+        expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'INVITATION_EMAIL_SENT' }), expect.stringContaining('[invitation.email.send]'));
     });
 
     it('does not set email_sent_at a second time when the processor is invoked twice for the same invitation', async () => {
@@ -457,6 +456,7 @@ describe('Notifications — purchase → enqueue → process pipeline', () => {
         expect(opts).toMatchObject({
             attempts: 5,
             backoff: { type: 'exponential', delay: 2000 },
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             removeOnFail: { age: expect.any(Number), count: expect.any(Number) },
         });
     });

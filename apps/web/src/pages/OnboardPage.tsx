@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactElement } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { redeemInvitationSchema, InvitationStatusEnum } from '@mes/shared';
+import { redeemInvitationSchema, InvitationStatusEnum, ApiErrorCodes } from '@mes/shared';
 import type { IInvitationMetaResponse, IAuthTokenResponse } from '@mes/shared';
 import { fetchInvitationMeta, redeemInvitation } from '../api/invitationsApi';
 import { ApiError } from '../api/apiClient';
@@ -39,8 +39,6 @@ const existingAccountFormSchema = z.object({
 type NewAccountFormValues = z.infer<typeof newAccountFormSchema>;
 type ExistingAccountFormValues = z.infer<typeof existingAccountFormSchema>;
 
-const INVITATION_EMAIL_CONFLICT_CODE = 'INVITATION_EMAIL_CONFLICT';
-
 const onRedeemSuccess = (response: IAuthTokenResponse, studentEmail: string): void => {
     const payload = decodeJwtPayload(response.accessToken);
 
@@ -60,7 +58,7 @@ const handleRedeemError = (
     setFieldError: (field: string, message: string) => void,
 ): void => {
     if (err instanceof ApiError) {
-        if (err.code === INVITATION_EMAIL_CONFLICT_CODE) {
+        if (err.code === ApiErrorCodes.INVITATION_EMAIL_CONFLICT) {
             setSubmitError('This email is registered to a non-student account, or the password you entered is incorrect.');
 
             return;

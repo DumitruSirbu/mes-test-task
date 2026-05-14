@@ -7,6 +7,7 @@ import { EnrolmentsRepository } from '../../enrolments/repository/EnrolmentsRepo
 import { EnrolmentEntity } from '../../enrolments/entity/EnrolmentEntity';
 import { NotEnrolledError } from '../../common/error/NotEnrolledError';
 import { LessonNotFoundError } from '../../common/error/LessonNotFoundError';
+import { DataIntegrityError } from '../../common/error/DataIntegrityError';
 
 /**
  * Business logic for the LMS lesson access layer.
@@ -44,7 +45,10 @@ export class LessonsService {
             // Data-integrity guard: `assertEnrolled` always loads the course relation, so
             // this branch can only fire if there is a DB inconsistency (orphaned enrolment).
             // Throw a generic error rather than NotEnrolledError to avoid a misleading 403.
-            throw new Error(`Enrolment for userId=${userId} courseId=${courseId} has no course relation — data integrity violation.`);
+            throw new DataIntegrityError(`Enrolment for userId=${userId} courseId=${courseId} has no course relation — data integrity violation.`, {
+                userId,
+                courseId,
+            });
         }
 
         return {

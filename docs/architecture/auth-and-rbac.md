@@ -326,6 +326,16 @@ For this test task, `JWT_SECRET` is static per environment. To rotate in product
 
 Out of scope for v1, but the JWT header in the signer is the easy seam.
 
+## Known limitations
+
+### Refresh-token rotation concurrent-family deadlock window
+
+When multiple simultaneous refresh requests arrive from the same token family (e.g., concurrent browser tabs, network retry loops), the `SELECT ... FOR UPDATE` lock on the predecessor can create a small window where both requests see the same predecessor row. The race is resolved by the unique constraint on `(user_id, family_id)` at insertion of the successor; one request will succeed and the other will fail. This is correct but observable under load. Future mitigation: pre-transaction conflict detection or queue-based rotation to serialize requests from the same family.
+
+### Reuse-detection User-Agent strict equality on grace path
+
+Token reuse detection uses an exact string match of the `User-Agent` header when deciding between grace-path replay (10s window) and theft-path family revocation. Browser updates can shift the UA mid-session (e.g., Chrome auto-update from 125.0 to 126.0), causing a mismatch and triggering family revocation even though the session is legitimate. The grace window (10s) mitigates in practice because most legitimate retries occur immediately. Future mitigation: hash the UA to a family (e.g., `Chrome 125.x`, ignoring patch version) instead of strict equality.
+
 ## See also
 
 - [overview.md](./overview.md)

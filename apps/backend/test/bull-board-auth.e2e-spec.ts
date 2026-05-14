@@ -1,14 +1,4 @@
-import {
-    Controller,
-    Get,
-    HttpCode,
-    HttpStatus,
-    INestApplication,
-    MiddlewareConsumer,
-    Module,
-    NestModule,
-    ValidationPipe,
-} from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, INestApplication, MiddlewareConsumer, Module, NestModule, ValidationPipe } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule, JwtService } from '@nestjs/jwt';
@@ -77,8 +67,7 @@ describe('Bull Board auth middleware (e2e)', () => {
     let app: INestApplication<App>;
     let jwtService: JwtService;
 
-    const signToken = (userId: number, role: UserRoleEnum): string =>
-        jwtService.sign({ sub: userId, role }, { expiresIn: '15m' });
+    const signToken = (userId: number, role: UserRoleEnum): string => jwtService.sign({ sub: userId, role }, { expiresIn: '15m' });
 
     beforeAll(async () => {
         process.env.JWT_SECRET = TEST_JWT_SECRET;
@@ -106,8 +95,7 @@ describe('Bull Board auth middleware (e2e)', () => {
                 { provide: APP_GUARD, useClass: RolesGuard },
                 {
                     provide: APP_PIPE,
-                    useFactory: (): ValidationPipe =>
-                        new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+                    useFactory: (): ValidationPipe => new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
                 },
                 { provide: APP_FILTER, useClass: HttpExceptionFilter },
             ],
@@ -129,18 +117,12 @@ describe('Bull Board auth middleware (e2e)', () => {
     it('non-ADMIN bearer (PARENT role) returns 403', async () => {
         const token = signToken(1, UserRoleEnum.PARENT);
 
-        await request(app.getHttpServer())
-            .get(STUB_QUEUES_PATH)
-            .set('Authorization', `Bearer ${token}`)
-            .expect(403);
+        await request(app.getHttpServer()).get(STUB_QUEUES_PATH).set('Authorization', `Bearer ${token}`).expect(403);
     });
 
     it('valid ADMIN bearer returns 200', async () => {
         const token = signToken(2, UserRoleEnum.ADMIN);
 
-        await request(app.getHttpServer())
-            .get(STUB_QUEUES_PATH)
-            .set('Authorization', `Bearer ${token}`)
-            .expect(200);
+        await request(app.getHttpServer()).get(STUB_QUEUES_PATH).set('Authorization', `Bearer ${token}`).expect(200);
     });
 });

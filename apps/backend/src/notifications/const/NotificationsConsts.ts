@@ -47,6 +47,18 @@ export const INVITATION_EMAIL_REMOVE_ON_FAIL_COUNT = 1_000;
 export const INVITATION_EMAIL_JOB_ID_PREFIX = 'invitation-email-';
 
 /**
+ * BullMQ worker `lockDuration` for the invitation-email processor, in milliseconds.
+ * 30 seconds is sufficient for a single email dispatch + DB mark.
+ */
+export const INVITATION_EMAIL_WORKER_LOCK_DURATION_MS = 30_000;
+
+/**
+ * BullMQ worker `stalledInterval` for the invitation-email processor, in milliseconds.
+ * 30 seconds: how often BullMQ checks for stalled jobs.
+ */
+export const INVITATION_EMAIL_WORKER_STALLED_INTERVAL_MS = 30_000;
+
+/**
  * Default Redis connection values used when `REDIS_HOST` / `REDIS_PORT` env vars
  * are absent. Never inline these strings/numbers — reference these constants.
  */
