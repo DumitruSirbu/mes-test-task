@@ -49,3 +49,28 @@ export const PG_UNIQUE_VIOLATION = '23505';
  * throwing a format error.
  */
 export const DUMMY_HASH_SENTINEL = '$argon2id$v=19$m=65536,t=3,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+
+/**
+ * Shared time-window for all throttle buckets: 60 seconds.
+ * Both the global default and the login-specific throttler use this window;
+ * only the request limits differ.
+ */
+export const THROTTLE_WINDOW_MS = 60_000;
+
+/**
+ * Global rate-limit applied to every route by `ProxyAwareThrottlerGuard` (APP_GUARD in AppModule).
+ * 60 requests per window is a generous default for authenticated API traffic.
+ */
+export const THROTTLE_DEFAULT_LIMIT = 60;
+
+/**
+ * Strict rate-limit applied to `/auth/login` only.
+ * 5 attempts per window per bucket mitigates credential-stuffing at low cost.
+ */
+export const THROTTLE_LOGIN_LIMIT = 5;
+
+/**
+ * Named throttler key used in `@Throttle({ [THROTTLER_DEFAULT_NAME]: { ... } })`.
+ * Must match the `name` field in `ThrottlerModule.forRoot` configuration.
+ */
+export const THROTTLER_DEFAULT_NAME = 'default';

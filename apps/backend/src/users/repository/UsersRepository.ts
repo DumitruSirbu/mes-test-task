@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
+import { UserRoleEnum } from '@mes/shared';
 import { BaseRepository } from '../../common/repository/BaseRepository';
 import { UserEntity } from '../entity/UserEntity';
 import { ICreateUserInput } from '../interface/ICreateUserInput';
@@ -36,6 +37,19 @@ export class UsersRepository extends BaseRepository<UserEntity> {
         const entity = manager.create(UserEntity, input);
 
         return manager.save(UserEntity, entity);
+    }
+
+    /**
+     * Return a page of users filtered by role, ordered by created_at DESC.
+     * Used by admin list endpoints — callers must not bypass this via raw TypeORM.
+     */
+    public async findPaginatedByRole(role: UserRoleEnum, skip: number, take: number): Promise<[UserEntity[], number]> {
+        return this.repository.findAndCount({
+            where: { role },
+            order: { createdAt: 'DESC' },
+            skip,
+            take,
+        });
     }
 
     /**

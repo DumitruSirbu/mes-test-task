@@ -51,4 +51,6 @@ M03 (admin role exists), M04 (purchases exist), M05 (students exist).
 
 ## Outcome
 
-(filled by mes-scribe at close)
+**Status:** ✓ Done (+ Wave 8 polish)
+
+Shipped admin panel with backend module (4 endpoints: parents, students, purchases, courses — all paginated, ordered DESC, @Roles(ADMIN)) and frontend SPA (`apps/admin/` — login with ADMIN guard, sidebar layout, 4 data tables with URL-synced pagination). Tests: 5 backend e2e + 8 frontend unit, all green. Initial review: 0 blockers. Post-close Wave 7 re-review uncovered 8 medium findings (proxy IP throttler, Zod error envelope, 401 session handler, magic constants, parameter nesting, blank lines, cohesion, cast comment). Wave 8 remediated all (28 backend + 13 frontend tests all green). All verification steps passed. Follow-ups deferred: XSS/localStorage (cross-app), rate limiting on /auth/login (cross-app).

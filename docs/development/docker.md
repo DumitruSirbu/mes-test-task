@@ -4,11 +4,11 @@
 
 ```bash
 cp .env.example .env     # optional — compose defaults will work without it
-docker compose up        # builds + starts postgres, redis, backend, web
+docker compose up        # builds + starts postgres, redis, backend, web, admin
 ```
 
-The first `docker compose up` builds the backend and web images (~30 s on a warm Docker
-cache); subsequent runs reuse the cached layers. Tear down with `docker compose down`
+The first `docker compose up` builds the backend, web, and admin images (~30 s on a warm
+Docker cache); subsequent runs reuse the cached layers. Tear down with `docker compose down`
 (keep volumes) or `docker compose down -v` (wipe DB).
 
 ## Services in `docker-compose.yml`
@@ -19,8 +19,9 @@ cache); subsequent runs reuse the cached layers. Tear down with `docker compose 
 | `redis`    | `redis:7-alpine`                | 6379      | `redis-cli ping`                  |
 | `backend`  | `apps/backend/Dockerfile`       | 3010      | `wget /health/ready`              |
 | `web`      | `apps/web/Dockerfile` (nginx)   | 5173      | `wget /`                          |
+| `admin`    | `apps/admin/Dockerfile` (nginx) | 5174      | `wget /`                          |
 
-`backend` depends on healthy `postgres` + `redis`; `web` depends on healthy `backend`.
+`backend` depends on healthy `postgres` + `redis`; `web` and `admin` depend on healthy `backend`.
 This means `docker compose up` blocks until the stack is reachable — no manual sequencing.
 
 If the host's 5432 or 6379 ports are occupied by another project, override per-run:
@@ -63,6 +64,15 @@ than one that refuses to start (see ADR 0005). The typeorm CLI is invoked agains
 2. **runtime** — `nginx:1.27-alpine` with `apps/web/nginx.conf` (gzip on, long-cache
    hashed assets, SPA fallback to `/index.html` for the hash-router).
 
+## Admin image (multi-stage)
+
+`apps/admin/Dockerfile` follows the same pattern as the web image:
+
+1. **deps + build** — workspace install, builds `@mes/shared` then `admin` via `vite build`,
+   emitting `apps/admin/dist/`. `VITE_API_BASE_URL` is a build-time arg.
+2. **runtime** — `nginx:1.27-alpine` with `apps/admin/nginx.conf` listening on port 5174
+   (gzip on, long-cache hashed assets, SPA fallback to `/index.html` for HashRouter).
+
 ## Env injection strategy
 
 Docker Compose automatically loads the root `.env` file for `${VAR:-default}` interpolation
@@ -78,8 +88,8 @@ vars are part of each image's expected env contract, so compose injects them dir
 points at (e.g. `localhost` for native-dev workflow). All sensitive vars (`JWT_SECRET`)
 flow in via env interpolation only — never baked into image layers (see `.dockerignore`).
 
-**Web** receives `VITE_API_BASE_URL` as a build-time `args:` value. No runtime env file
-is needed because static bundles have no `process.env` access.
+**Web** and **Admin** each receive `VITE_API_BASE_URL` as a build-time `args:` value. No
+runtime env file is needed because static bundles have no `process.env` access.
 
 **Copy `.env.example` to `.env` before the first `docker compose up`** if you need to
 override any default (e.g. set a real `JWT_SECRET`). Without it, compose falls back to

@@ -1,5 +1,6 @@
 import { Module, ValidationPipe } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
@@ -25,7 +26,10 @@ import { PurchasesModule } from './purchases/PurchasesModule';
 import { PurchaseEntity } from './purchases/entity/PurchaseEntity';
 import { EnrolmentEntity } from './enrolments/entity/EnrolmentEntity';
 import { LessonsModule } from './lessons/LessonsModule';
+import { AdminModule } from './admin/AdminModule';
 import { LessonEntity } from './lessons/entity/LessonEntity';
+import { ProxyAwareThrottlerGuard } from './common/guard/ProxyAwareThrottlerGuard';
+import { THROTTLE_DEFAULT_LIMIT, THROTTLE_WINDOW_MS, THROTTLER_DEFAULT_NAME } from './auth/const/AuthConsts';
 
 /**
  * Root module. Order matters:
@@ -42,6 +46,7 @@ import { LessonEntity } from './lessons/entity/LessonEntity';
 @Module({
     imports: [
         ConfigModule.forRoot({ isGlobal: true }),
+        ThrottlerModule.forRoot([{ name: THROTTLER_DEFAULT_NAME, ttl: THROTTLE_WINDOW_MS, limit: THROTTLE_DEFAULT_LIMIT }]),
         ClsRequestModule,
         LoggerModule,
         TypeOrmModule.forRootAsync({
@@ -59,10 +64,12 @@ import { LessonEntity } from './lessons/entity/LessonEntity';
         IdempotencyModule,
         PurchasesModule,
         LessonsModule,
+        AdminModule,
     ],
     controllers: [AppController],
     providers: [
         AppService,
+        { provide: APP_GUARD, useClass: ProxyAwareThrottlerGuard },
         { provide: APP_GUARD, useClass: JwtAuthGuard },
         { provide: APP_GUARD, useClass: RolesGuard },
         {

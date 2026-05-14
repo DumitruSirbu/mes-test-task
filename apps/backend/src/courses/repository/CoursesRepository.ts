@@ -18,6 +18,18 @@ export class CoursesRepository extends BaseRepository<CourseEntity> {
         return this.findAll({ order: { subject: 'ASC', yearFrom: 'ASC' } });
     }
 
+    /**
+     * Return a page of courses ordered by created_at DESC.
+     * Used by the admin list endpoint.
+     */
+    public async findPaginated(skip: number, take: number): Promise<[CourseEntity[], number]> {
+        return this.repository.findAndCount({
+            order: { createdAt: 'DESC' },
+            skip,
+            take,
+        });
+    }
+
     public async findById(courseId: number): Promise<CourseEntity | null> {
         return this.findOne({ courseId });
     }

@@ -93,7 +93,30 @@ services:
             backend:
                 condition: service_healthy
         healthcheck:
-            test: ['CMD-SHELL', 'wget -qO- http://localhost:5173/ >/dev/null 2>&1 || exit 1']
+            test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:5173/ >/dev/null 2>&1 || exit 1']
+            interval: 10s
+            timeout: 5s
+            retries: 10
+            start_period: 10s
+
+    admin:
+        build:
+            context: .
+            dockerfile: apps/admin/Dockerfile
+            target: runtime
+            args:
+                # Vite inlines VITE_* envs at build time. Pointing at the host port works
+                # because the browser (not the container) makes the API call.
+                VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3010}
+        container_name: mes-admin
+        restart: unless-stopped
+        ports:
+            - '${ADMIN_PORT:-5174}:5174'
+        depends_on:
+            backend:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:5174/ >/dev/null 2>&1 || exit 1']
             interval: 10s
             timeout: 5s
             retries: 10

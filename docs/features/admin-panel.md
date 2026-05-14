@@ -1,6 +1,6 @@
 # Feature — Admin Panel
 
-> Status: stub. Filled in M07 by `mes-scribe`.
+> Status: shipped M07, polished M07 Wave 8.
 
 ## Scope
 
@@ -17,9 +17,13 @@ Served from `apps/admin/` on its own port. Same auth backend as `apps/web`. Logi
 
 - Every `admin/*` endpoint requires `@Roles(ADMIN)`.
 - Frontend route guard rejects non-ADMIN tokens with a clear "ADMIN access only" page.
+- Proxy-aware throttler on login (keys by user.id / X-Forwarded-For / IP).
+- Session cleared on 401; validation errors mapped to canonical envelope.
 
 ## Non-goals (v1)
 
 - Mutating data from the admin panel.
 - Impersonation.
 - Full audit log.
+- XSS/localStorage hardening (cross-app; M09 scope).
+- Rate limiting on other endpoints (cross-app; M09 scope).

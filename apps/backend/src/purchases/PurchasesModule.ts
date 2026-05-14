@@ -12,6 +12,6 @@ import { IdempotencyModule } from '../common/idempotency/IdempotencyModule';
     imports: [TypeOrmModule.forFeature([PurchaseEntity]), CoursesModule, InvitationsModule, IdempotencyModule],
     controllers: [PurchasesController],
     providers: [PurchasesRepository, PurchasesService],
-    exports: [PurchasesService],
+    exports: [PurchasesService, PurchasesRepository],
 })
 export class PurchasesModule {}

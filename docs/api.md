@@ -593,6 +593,188 @@ Readiness probe. Pings Postgres and Redis to confirm the backend is ready to ser
 
 ---
 
+## Admin
+
+All admin endpoints require ADMIN role and a valid bearer token. Unauthenticated requests and non-ADMIN roles are rejected.
+
+### GET /admin/parents
+
+List all parents (paginated, newest first).
+
+**Auth:** Bearer JWT (ADMIN only)
+
+**Idempotent:** N/A (GET)
+
+**Query parameters:**
+
+| Param | Type | Default |
+|-------|------|---------|
+| page  | int  | 1       |
+| limit | int  | 20      |
+
+**Response `200`:**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "email": "parent@example.com",
+      "firstName": "Alice",
+      "lastName": "Smith",
+      "createdAt": "2026-05-13T10:00:00Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 20
+}
+```
+
+**Error codes:**
+
+| HTTP | Code | When |
+|------|------|------|
+| 401  | `AUTH_MISSING_TOKEN` | Authorization header missing. |
+| 401  | `AUTH_INVALID_TOKEN` | Token invalid or expired. |
+| 403  | `AUTH_FORBIDDEN_ROLE` | Authenticated user is not ADMIN. |
+
+---
+
+### GET /admin/students
+
+List all students (paginated, newest first).
+
+**Auth:** Bearer JWT (ADMIN only)
+
+**Idempotent:** N/A (GET)
+
+**Query parameters:**
+
+| Param | Type | Default |
+|-------|------|---------|
+| page  | int  | 1       |
+| limit | int  | 20      |
+
+**Response `200`:**
+```json
+{
+  "data": [
+    {
+      "id": 2,
+      "email": "student@example.com",
+      "firstName": "Bob",
+      "lastName": "Jones",
+      "dateOfBirth": "2010-05-15",
+      "createdAt": "2026-05-13T11:00:00Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 20
+}
+```
+
+**Error codes:**
+
+| HTTP | Code | When |
+|------|------|------|
+| 401  | `AUTH_MISSING_TOKEN` | Authorization header missing. |
+| 401  | `AUTH_INVALID_TOKEN` | Token invalid or expired. |
+| 403  | `AUTH_FORBIDDEN_ROLE` | Authenticated user is not ADMIN. |
+
+---
+
+### GET /admin/purchases
+
+List all purchases (paginated, newest first).
+
+**Auth:** Bearer JWT (ADMIN only)
+
+**Idempotent:** N/A (GET)
+
+**Query parameters:**
+
+| Param | Type | Default |
+|-------|------|---------|
+| page  | int  | 1       |
+| limit | int  | 20      |
+
+**Response `200`:**
+```json
+{
+  "data": [
+    {
+      "id": 42,
+      "parentId": 1,
+      "parentEmail": "parent@example.com",
+      "courseId": 1,
+      "courseTitle": "GCSE Mathematics",
+      "amountPence": 19900,
+      "status": "COMPLETED",
+      "createdAt": "2026-05-13T10:30:00Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 20
+}
+```
+
+**Error codes:**
+
+| HTTP | Code | When |
+|------|------|------|
+| 401  | `AUTH_MISSING_TOKEN` | Authorization header missing. |
+| 401  | `AUTH_INVALID_TOKEN` | Token invalid or expired. |
+| 403  | `AUTH_FORBIDDEN_ROLE` | Authenticated user is not ADMIN. |
+
+---
+
+### GET /admin/courses
+
+List all courses (paginated, newest first).
+
+**Auth:** Bearer JWT (ADMIN only)
+
+**Idempotent:** N/A (GET)
+
+**Query parameters:**
+
+| Param | Type | Default |
+|-------|------|---------|
+| page  | int  | 1       |
+| limit | int  | 20      |
+
+**Response `200`:**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "subject": "MATHEMATICS",
+      "yearFrom": 9,
+      "yearTo": 11,
+      "title": "GCSE Mathematics",
+      "pricePence": 19900,
+      "createdAt": "2026-05-13T08:00:00Z"
+    }
+  ],
+  "total": 5,
+  "page": 1,
+  "limit": 20
+}
+```
+
+**Error codes:**
+
+| HTTP | Code | When |
+|------|------|------|
+| 401  | `AUTH_MISSING_TOKEN` | Authorization header missing. |
+| 401  | `AUTH_INVALID_TOKEN` | Token invalid or expired. |
+| 403  | `AUTH_FORBIDDEN_ROLE` | Authenticated user is not ADMIN. |
+
+---
+
 ## Error Reference
 
 All error responses follow the canonical JSON shape:

@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { IAuthenticatedUser } from '@mes/shared';
 import { Public } from '../decorator/Public';
 import { CurrentUser } from '../decorator/CurrentUser';
@@ -7,6 +8,7 @@ import { SignupDto } from '../dto/SignupDto';
 import { IAuthTokenResponse } from '../interface/IAuthTokenResponse';
 import { IAuthUserProfile } from '../interface/IAuthUserProfile';
 import { AuthService } from '../service/AuthService';
+import { THROTTLE_LOGIN_LIMIT, THROTTLE_WINDOW_MS, THROTTLER_DEFAULT_NAME } from '../const/AuthConsts';
 
 /**
  * `/auth/*` routes — both `signup` and `login` are `@Public()`; `/auth/me` requires a
@@ -25,6 +27,7 @@ export class AuthController {
     }
 
     @Public()
+    @Throttle({ [THROTTLER_DEFAULT_NAME]: { limit: THROTTLE_LOGIN_LIMIT, ttl: THROTTLE_WINDOW_MS } })
     @Post('login')
     @HttpCode(HttpStatus.OK)
     public async login(@Body() body: LoginDto): Promise<IAuthTokenResponse> {

@@ -29,6 +29,18 @@ export class PurchasesRepository extends BaseRepository<PurchaseEntity> {
         });
     }
 
+    /**
+     * Return a page of all purchases ordered by created_at DESC.
+     * Used by the admin list endpoint — keeps findAndCount off the service layer.
+     */
+    public async findPaginated(skip: number, take: number): Promise<[PurchaseEntity[], number]> {
+        return this.repository.findAndCount({
+            order: { createdAt: 'DESC' },
+            skip,
+            take,
+        });
+    }
+
     public async findByIdForParent(purchaseId: number, parentUserId: number): Promise<PurchaseEntity | null> {
         return this.findOne({ purchaseId, parentUserId });
     }

@@ -49,9 +49,9 @@ Specialist agents are defined in `.claude/agents/` (also accessible via `.agents
 
 ## Current milestone
 
-→ `milestones/M07-admin-panel.md`
+→ M07 closed. No pending active milestones; M08+ on roadmap.
 
-(M01 — Foundation: done. M02 — Architecture & ADRs: done. M03 — Backend Auth, RBAC & Logging: done. M04 — Purchase & Invitation: done. M05 — Student Onboarding & Activation: done. M06 — LMS Dashboard: done. M07 — Admin Panel: pending.)
+(M01 — Foundation: done. M02 — Architecture & ADRs: done. M03 — Backend Auth, RBAC & Logging: done. M04 — Purchase & Invitation: done. M05 — Student Onboarding & Activation: done. M06 — LMS Dashboard: done. M07 — Admin Panel: done.)
 
 (The scribe keeps this pointer current.)
 
